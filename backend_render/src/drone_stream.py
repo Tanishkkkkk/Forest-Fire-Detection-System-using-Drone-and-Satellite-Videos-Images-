@@ -44,7 +44,7 @@ WEBCAM = 0
 VIDEO = "simulated_drone_fire_video.mp4"
 PHONE = "http://192.0.0.4:8080/video"
 
-SOURCE = VIDEO   # change here easily
+SOURCE = 0   # change here easily
 
 CONF_THRESH = 0.25
 MIN_AREA_RATIO = 0.002
@@ -247,4 +247,5 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+
 print("✅ Detection system stopped")
