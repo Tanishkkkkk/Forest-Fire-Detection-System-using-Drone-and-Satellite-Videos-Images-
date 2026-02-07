@@ -11,7 +11,7 @@ async function loadStatus() {
   lastUpdate.status = now;
 
   try {
-    const res = await fetch("/api/status");
+    const res = await fetch("https://forest-fire-detection-system-using-drone.onrender.com");
     const data = await res.json();
 
     const cardSat = document.getElementById("cardSat");
@@ -32,7 +32,7 @@ async function loadFirms() {
   if (fireMarkerCluster) return;
 
   try {
-    const res = await fetch("/api/firms");
+    const res = await fetch("https://forest-fire-detection-system-using-drone.onrender.com");
     const data = await res.json();
 
     if (!map) {
@@ -114,7 +114,7 @@ async function loadLocalFires() {
   lastUpdate.local = now;
 
   try {
-    const res = await fetch("/api/local-fires");
+    const res = await fetch("https://forest-fire-detection-system-using-drone.onrender.com");
     const data = await res.json();
 
     const box = document.getElementById("detectionsList");
@@ -289,4 +289,5 @@ setInterval(() => {
     fireMarkerCluster = null;
     loadFirms();
   }
+
 }, 300000); // 5 minutes
