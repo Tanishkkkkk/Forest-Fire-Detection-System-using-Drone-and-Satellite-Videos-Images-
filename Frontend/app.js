@@ -187,8 +187,8 @@ async function loadAnalytics() {
   lastUpdate.analytics = now;
 
   try {
-    const status = await fetch("/api/status").then(r => r.json());
-    const locals = await fetch("/api/local-fires").then(r => r.json());
+    const status = await fetch("https://forest-fire-detection-system-using-drone.onrender.com").then(r => r.json());
+    const locals = await fetch("https://forest-fire-detection-system-using-drone.onrender.com").then(r => r.json());
 
     const totalSat = document.getElementById("totalSat");
     const totalLocal = document.getElementById("totalLocal");
@@ -291,3 +291,4 @@ setInterval(() => {
   }
 
 }, 300000); // 5 minutes
+
