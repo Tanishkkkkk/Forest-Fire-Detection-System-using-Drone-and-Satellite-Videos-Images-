@@ -38,7 +38,7 @@ except ImportError:
 
 # ================== CONFIG ==================
 # Update this path to match your model location
-MODEL_PATH = "runs/detect/fire_stage113/weights/best.pt"
+MODEL_PATH = "backend_render/best.pt"
 
 WEBCAM = 0
 VIDEO = "simulated_drone_fire_video.mp4"
@@ -249,3 +249,4 @@ cap.release()
 cv2.destroyAllWindows()
 
 print("✅ Detection system stopped")
+
