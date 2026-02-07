@@ -1,0 +1,36 @@
+body {
+    margin: 0;
+    font-family: Arial;
+    display: flex;
+}
+
+.sidebar {
+    width: 200px;
+    background: #111;
+    color: white;
+    padding: 20px;
+}
+
+.sidebar button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+}
+
+.main {
+    flex: 1;
+    padding: 20px;
+}
+
+.section {
+    display: block;
+}
+
+.hidden {
+    display: none;
+}
+
+#mapBox {
+    height: 400px;
+    background: #ddd;
+}

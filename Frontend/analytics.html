@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fire Intelligence System</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #050814;
+      --bg-card: #0b1121;
+      --bg-card-border: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+
+      --color-red: #ef4444;
+      /* Fire Confirmed */
+      --color-red-glow: rgba(239, 68, 68, 0.2);
+      --color-green: #10b981;
+      /* Safe / False Positive */
+      --color-blue: #3b82f6;
+      /* Satellite / Drone */
+      --color-yellow: #f59e0b;
+      /* Warning */
+
+      --font-ui: 'Inter', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      height: 100vh;
+      display: grid;
+      grid-template-rows: 60px 1fr;
+      overflow: hidden;
+    }
+
+    /* --- Header --- */
+    header {
+      border-bottom: 1px solid var(--bg-card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(11, 17, 33, 0.8);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .sys-status {
+      font-family: var(--font-code);
+      font-size: 0.75rem;
+      color: var(--color-green);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: currentColor;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.4;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+      }
+
+      70% {
+        opacity: 1;
+        box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+      }
+
+      100% {
+        opacity: 0.4;
+      }
+    }
+
+    .back-btn {
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-main);
+      border-radius: 999px;
+      padding: 8px 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--bg-card-border);
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .back-btn:hover {
+      background: #020617;
+      border-color: var(--color-blue);
+      transform: translateY(-1px);
+    }
+
+    /* --- Grid Layout --- */
+    main {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 3fr 1fr;
+      grid-template-rows: 90px 1fr 1fr;
+      gap: 20px;
+      height: 100%;
+    }
+
+    /* Areas */
+    .area-kpi {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+    }
+
+    .area-timeline {
+      grid-column: 1 / 2;
+      grid-row: 2 / 3;
+    }
+
+    .area-funnel {
+      grid-column: 2 / 3;
+      grid-row: 2 / 3;
+    }
+
+    .area-confidence {
+      grid-column: 1 / 2;
+      grid-row: 3 / 4;
+    }
+
+    .area-geo {
+      grid-column: 2 / 3;
+      grid-row: 3 / 4;
+    }
+
+    /* Card Styles */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    /* KPI Specifics */
+    .kpi-value {
+      font-family: var(--font-code);
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: auto;
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    .bg-red {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--color-red);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .bg-green {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--color-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* Funnel Viz */
+    .funnel-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .funnel-label {
+      font-size: 0.9rem;
+    }
+
+    .funnel-val {
+      font-family: var(--font-code);
+      font-weight: 700;
+    }
+
+    /* Geo Summary */
+    .geo-stat {
+      margin-bottom: 12px;
+    }
+
+    .geo-label {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .geo-data {
+      font-family: var(--font-code);
+      font-size: 1.1rem;
+      color: var(--color-blue);
+    }
+
+    /* Chart Containers */
+    .chart-wrapper {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="brand">
+      <span style="color: var(--color-red);">🔥</span>
+      FIRE INTELLIGENCE COMMAND
+    </div>
+    <div style="display: flex; gap: 16px; align-items: center;">
+      <div class="sys-status">
+        <div class="pulse"></div> SYSTEM ACTIVE
+      </div>
+      <button class="back-btn" onclick="window.location.href='/'">
+        ⬅ Back to Dashboard
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. LIVE SYSTEM SUMMARY -->
+    <div class="area-kpi">
+      <!-- Satellite Hotspots -->
+      <div class="card">
+        <div class="card-header">Satellite Hotspots</div>
+        <div class="kpi-value" id="kpi-sat" style="color: var(--color-blue);">0</div>
+        <div class="kpi-sub">NASA MODIS/VIIRS</div>
+      </div>
+
+      <!-- Drone Deployments -->
+      <div class="card">
+        <div class="card-header">Drone Deployments</div>
+        <div class="kpi-value" id="kpi-drone" style="color: var(--color-yellow);">0</div>
+        <div class="kpi-sub">Auto-Dispatched</div>
+      </div>
+
+      <!-- Confirmed Fires -->
+      <div class="card">
+        <div class="card-header">Confirmed Fires</div>
+        <div class="kpi-value" id="kpi-fire" style="color: var(--color-red);">0</div>
+        <div class="kpi-sub">YOLO Verified</div>
+      </div>
+
+      <!-- False Alarms Prevented -->
+      <div class="card">
+        <div class="card-header">False Alarms Prevented</div>
+        <div class="kpi-value" id="kpi-false" style="color: var(--color-green);">0</div>
+        <div class="kpi-sub">Cost Savings</div>
+      </div>
+    </div>
+
+    <!-- 2. DETECTION TIMELINE -->
+    <div class="card area-timeline">
+      <div class="card-header">
+        Fire Event Lifecycle (Live)
+        <span class="status-badge bg-green">Monitoring</span>
+      </div>
+      <div class="chart-wrapper">
+        <canvas id="timelineChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 3. VERIFICATION FUNNEL -->
+    <div class="card area-funnel">
+      <div class="card-header">Verification Funnel</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+        <div class="funnel-row">
+          <span class="funnel-label" style="color: var(--color-blue);">📡 Satellite Hotspots</span>
+          <span class="funnel-val" id="funnel-sat">0</span>
+        </div>
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">↓</div>
+        <div class="funnel-row">
+          <span class="funnel-label" style="color: var(--color-yellow);">🚁 Drone Triggers</span>
+          <span class="funnel-val" id="funnel-drone">0</span>
+        </div>
+        <div style="text-align: center; color: var(--text-muted); font-size: 0.8rem;">↓</div>
+        <div class="funnel-row">
+          <span class="funnel-label" style="color: var(--color-red);">🔥 Confirmed Fires</span>
+          <span class="funnel-val" id="funnel-fire">0</span>
+        </div>
+        <div class="funnel-row" style="border-bottom: none; opacity: 0.6;">
+          <span class="funnel-label">🛡️ False Positives</span>
+          <span class="funnel-val" id="funnel-false">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. CONFIDENCE vs TIME -->
+    <div class="card area-confidence">
+      <div class="card-header">Model Confidence Integrity</div>
+      <div class="chart-wrapper">
+        <canvas id="confidenceChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 5. GEO INTELLIGENCE -->
+    <div class="card area-geo">
+      <div class="card-header">Geo Intelligence</div>
+      <div style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+        <div class="geo-stat">
+          <div class="geo-label">Most Active Region</div>
+          <div class="geo-data" id="geo-region">--</div>
+        </div>
+        <div class="geo-stat">
+          <div class="geo-label">Avg Fire Spread Radius</div>
+          <div class="geo-data" id="geo-spread">--</div>
+        </div>
+        <div class="geo-stat">
+          <div class="geo-label">Repeat Hotspots</div>
+          <div class="geo-data" id="geo-repeat">0</div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // --- CHARTS CONFIG ---
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = '#1e293b';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    // 1. Timeline Chart (Scatter/Bubble)
+    const ctxTimeline = document.getElementById('timelineChart').getContext('2d');
+    const timelineChart = new Chart(ctxTimeline, {
+      type: 'scatter',
+      data: {
+        datasets: [
+          { label: 'Confirmed Fire', data: [], backgroundColor: '#ef4444', pointRadius: 6 },
+          { label: 'False Alarm', data: [], backgroundColor: '#10b981', pointRadius: 4 },
+          { label: 'Drone Trigger', data: [], backgroundColor: '#f59e0b', pointRadius: 3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            type: 'time',
+            time: { unit: 'minute' },
+            grid: { display: false }
+          },
+          y: {
+            display: false, // Abstract "Event State"
+            min: 0, max: 4
+          }
+        },
+        plugins: {
+          legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } }
+        }
+      }
+    });
+
+    // 2. Confidence Chart
+    const ctxConf = document.getElementById('confidenceChart').getContext('2d');
+    const confChart = new Chart(ctxConf, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [{
+          label: 'Confidence (%)',
+          data: [],
+          borderColor: '#ef4444',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { min: 0, max: 100 },
+          x: { display: false }
+        },
+        plugins: {
+          annotation: {
+            annotations: {
+              line1: {
+                type: 'line', yMin: 50, yMax: 50, borderColor: '#f59e0b', borderWidth: 1, borderDash: [4, 4], label: { content: 'Threshold', enabled: true }
+              }
+            }
+          },
+          legend: { display: false }
+        }
+      }
+    });
+
+
+    // --- DATA FETCHING ---
+    async function fetchUpdate() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        const firesRes = await fetch('/api/local-fires');
+        const fires = await firesRes.json();
+
+        updateKPIs(data, fires);
+        updateTimeline(data.events); // Assuming server sends event log
+        updateFunnel(data.funnel);   // Assuming server sends funnel stats
+        updateConfidence(fires);
+        updateGeo(fires);
+
+      } catch (e) { console.error(e); }
+    }
+
+    // Animation Cache
+    const countCache = {};
+
+    function animateCount(id, endValue) {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const startValue = countCache[id] || 0;
+      if (startValue === endValue) return;
+
+      countCache[id] = endValue;
+
+      const duration = 800;
+      const startTime = performance.now();
+
+      function step(currentTime) {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = 1 - Math.pow(1 - progress, 3); // Cubic ease out
+
+        const current = Math.floor(startValue + (endValue - startValue) * ease);
+        el.innerText = current.toLocaleString();
+
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          el.innerText = endValue.toLocaleString();
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    function updateKPIs(data, fires) {
+      const funnel = data.funnel;
+      if (!funnel) return;
+
+      animateCount('kpi-sat', funnel.satellite || 0);
+      animateCount('kpi-drone', funnel.drone_triggers || 0);
+      animateCount('kpi-fire', funnel.confirmed || 0);
+      animateCount('kpi-false', funnel.false_positives || 0);
+    }
+
+    function updateFunnel(funnel) {
+      if (!funnel) return;
+      animateCount('funnel-sat', funnel.satellite || 0);
+      animateCount('funnel-drone', funnel.drone_triggers || 0);
+      animateCount('funnel-fire', funnel.confirmed || 0);
+      animateCount('funnel-false', funnel.false_positives || 0);
+    }
+
+    function updateTimeline(events) {
+      if (!events) return;
+      // Map events to chart datasets
+      // 0: Confirmed, 1: False, 2: Trigger
+      const confirmed = events.filter(e => e.type === 'confirmed').map(e => ({ x: e.time, y: 3 }));
+      const falsePos = events.filter(e => e.type === 'false_alarm').map(e => ({ x: e.time, y: 2 }));
+      const triggers = events.filter(e => e.type === 'drone_trigger').map(e => ({ x: e.time, y: 1 }));
+
+      // For demo, if we don't have enough events, we rely on server side simulation log
+      // We'll update the chart data
+      timelineChart.data.datasets[0].data = confirmed;
+      timelineChart.data.datasets[1].data = falsePos;
+      timelineChart.data.datasets[2].data = triggers;
+      timelineChart.update('none'); // 'none' mode for performance
+    }
+
+    function updateConfidence(fires) {
+      const recent = fires.slice(-40);
+      confChart.data.labels = recent.map((_, i) => i);
+      confChart.data.datasets[0].data = recent.map(f => (f.confidence || 0) * 100);
+      confChart.update();
+    }
+
+    function updateGeo(fires) {
+      if (fires.length > 0) {
+        const last = fires[fires.length - 1];
+        document.getElementById('geo-region').innerText = `${last.lat.toFixed(3)}, ${last.lon.toFixed(3)}`;
+        document.getElementById('geo-repeat').innerText = fires.length;
+      } else {
+        document.getElementById('geo-region').innerText = "--";
+      }
+    }
+
+    setInterval(fetchUpdate, 2000);
+    fetchUpdate();
+
+  </script>
+</body>
+
+</html>

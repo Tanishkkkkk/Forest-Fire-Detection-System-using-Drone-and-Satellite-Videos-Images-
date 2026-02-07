@@ -1,0 +1,2801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AeroGuard AI - Enterprise Command Center</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet MarkerCluster CSS for performance -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <!-- Deck.gl -->
+    <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
+    
+    <!-- Three.js for Globe -->
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three-globe@2.24.0/dist/three-globe.min.js"></script>
+    
+    <style>
+        /* ============================================
+           DESIGN SYSTEM TOKENS
+           ============================================ */
+        :root {
+            /* Typography Scale (1.250 Major Third) */
+            --font-base: 16px;
+            --font-xs: 0.64rem;      /* 10.24px */
+            --font-sm: 0.8rem;       /* 12.8px */
+            --font-md: 1rem;         /* 16px */
+            --font-lg: 1.25rem;      /* 20px */
+            --font-xl: 1.563rem;     /* 25px */
+            --font-2xl: 1.953rem;    /* 31.25px */
+            --font-3xl: 2.441rem;    /* 39px */
+            
+            /* Font Families */
+            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-heading: 'Space Grotesk', 'Inter', sans-serif;
+            
+            /* Line Heights */
+            --line-tight: 1.2;
+            --line-normal: 1.5;
+            --line-relaxed: 1.75;
+            
+            /* Letter Spacing */
+            --tracking-tight: -0.02em;
+            --tracking-normal: 0em;
+            --tracking-wide: 0.025em;
+            
+            /* Spacing Scale (8px grid) */
+            --space-1: 0.25rem;   /* 4px */
+            --space-2: 0.5rem;    /* 8px */
+            --space-3: 0.75rem;   /* 12px */
+            --space-4: 1rem;      /* 16px */
+            --space-5: 1.25rem;   /* 20px */
+            --space-6: 1.5rem;    /* 24px */
+            --space-8: 2rem;      /* 32px */
+            --space-10: 2.5rem;   /* 40px */
+            --space-12: 3rem;     /* 48px */
+            --space-16: 4rem;     /* 64px */
+            
+            /* Original Color Palette */
+            --obsidian: #0a0e1a;
+            --slate-deep: #0f1419;
+            --slate-900: #1a1f2e;
+            --slate-800: #252b3d;
+            --slate-700: #2d3548;
+            --slate-600: #3d4458;
+            --slate-500: #505668;
+            --cyan-400: #00d9ff;
+            --cyan-500: #00b8d4;
+            --cyan-600: #0097a7;
+            --red-400: #ff3366;
+            --red-500: #ff1744;
+            --amber-400: #ffb300;
+            --green-400: #00ff88;
+            --purple-500: #b388ff;
+            
+            /* Transitions */
+            --transition-fast: 150ms ease-in-out;
+            --transition-base: 200ms ease-in-out;
+            --transition-slow: 300ms ease-in-out;
+            
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-xl: 16px;
+            
+            /* Glassmorphism */
+            --glass-bg: rgba(26, 31, 46, 0.4);
+            --glass-border: rgba(0, 217, 255, 0.15);
+            --glass-blur: blur(24px);
+        }
+        
+        /* ============================================
+           RESET & BASE STYLES
+           ============================================ */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        html {
+            font-size: var(--font-base);
+        }
+        
+        body {
+            font-family: var(--font-body);
+            font-size: var(--font-md);
+            line-height: var(--line-normal);
+            background: var(--obsidian);
+            color: #e0e6ed;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* ============================================
+           LAYOUT STRUCTURE
+           ============================================ */
+        .app-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Header */
+        .header {
+            height: 64px;
+            background: linear-gradient(135deg, var(--slate-deep) 0%, var(--slate-900) 100%);
+            border-bottom: 2px solid var(--cyan-600);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-8);
+            position: relative;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 217, 255, 0.15);
+        }
+        
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--cyan-400) 50%, 
+                transparent 100%);
+            animation: header-glow 3s ease-in-out infinite;
+        }
+        
+        @keyframes header-glow {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 1; }
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .logo-icon {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, var(--cyan-500), var(--purple-500));
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            transition: transform var(--transition-base);
+            animation: logo-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes logo-pulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.05); filter: brightness(1.2); }
+        }
+        
+        .logo-text h1 {
+            font-family: var(--font-heading);
+            font-size: var(--font-lg);
+            font-weight: 600;
+            letter-spacing: var(--tracking-tight);
+            background: linear-gradient(90deg, var(--cyan-400), #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .logo-text p {
+            font-size: var(--font-xs);
+            color: var(--slate-500);
+            letter-spacing: var(--tracking-wide);
+            text-transform: uppercase;
+            font-weight: 500;
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: var(--space-6);
+        }
+        
+        .status-indicators {
+            display: flex;
+            gap: var(--space-6);
+            align-items: center;
+        }
+        
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-1);
+        }
+        
+        .status-label {
+            font-size: var(--font-xs);
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-wide);
+            font-weight: 500;
+        }
+        
+        .status-value {
+            font-size: var(--font-sm);
+            color: var(--cyan-400);
+            font-weight: 600;
+        }
+        
+        .clock {
+            font-family: var(--font-heading);
+            font-size: var(--font-lg);
+            color: var(--green-400);
+            letter-spacing: var(--tracking-tight);
+            font-weight: 600;
+            text-shadow: 0 0 10px var(--green-400);
+        }
+        
+        .notification-bell {
+            position: relative;
+            width: 40px;
+            height: 40px;
+            background: var(--slate-800);
+            border: 1px solid var(--cyan-600);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition-base);
+        }
+        
+        .notification-bell:hover {
+            background: var(--slate-700);
+            border-color: var(--cyan-400);
+            box-shadow: 0 0 15px rgba(0, 217, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 18px;
+            height: 18px;
+            background: var(--red-500);
+            border-radius: 50%;
+            font-size: var(--font-xs);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--obsidian);
+        }
+        
+        /* Main Container */
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(180deg, var(--slate-900) 0%, var(--slate-deep) 100%);
+            border-right: 1px solid var(--slate-700);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            position: relative;
+        }
+        
+        .sidebar::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 1px;
+            height: 100%;
+            background: linear-gradient(180deg, 
+                transparent 0%, 
+                var(--cyan-600) 50%, 
+                transparent 100%);
+        }
+        
+        .nav-section {
+            padding: var(--space-6) var(--space-4);
+        }
+        
+        .nav-title {
+            font-size: var(--font-xs);
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-wide);
+            margin-bottom: var(--space-3);
+            padding-left: var(--space-4);
+            font-weight: 600;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3) var(--space-4);
+            margin: var(--space-1) 0;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-base);
+            font-size: var(--font-sm);
+            font-weight: 500;
+            color: #e0e6ed;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item:hover:not(.disabled) {
+            background: var(--slate-800);
+            border-left-color: var(--cyan-500);
+        }
+        
+        .nav-item.active {
+            background: var(--slate-800);
+            border-left-color: var(--cyan-400);
+            color: var(--cyan-400);
+        }
+        
+        .nav-item.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .nav-icon {
+            font-size: var(--font-lg);
+            width: 20px;
+            text-align: center;
+        }
+        
+        /* Main Content */
+        main {
+            flex: 1;
+            padding: var(--space-6);
+            overflow-y: auto;
+            background: linear-gradient(135deg, var(--obsidian) 0%, var(--slate-deep) 100%);
+        }
+        
+        /* Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-6);
+            height: 100%;
+        }
+        
+        .left-column,
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-6);
+        }
+        
+        /* ============================================
+           CARD COMPONENTS (Glassmorphism/Bento)
+           ============================================ */
+        .card {
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            -webkit-backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 217, 255, 0.05) inset;
+            display: flex;
+            flex-direction: column;
+            transition: all var(--transition-base);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(0, 217, 255, 0.3), 
+                transparent);
+        }
+        
+        .card-header {
+            padding: var(--space-4) var(--space-5);
+            background: rgba(26, 31, 46, 0.6);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 217, 255, 0.1);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-wide);
+            color: var(--cyan-400);
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .card-body {
+            padding: var(--space-5);
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        /* Video Panel */
+        .video-panel {
+            flex: 1;
+        }
+        
+        .video-container {
+            height: 100%;
+            background: linear-gradient(135deg, rgba(20, 20, 20, 0.8) 0%, rgba(10, 10, 10, 0.9) 100%);
+            border-radius: var(--radius-md);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--slate-700);
+        }
+        
+        .video-placeholder {
+            text-align: center;
+            color: var(--slate-500);
+        }
+        
+        .video-placeholder-icon {
+            font-size: 48px;
+            margin-bottom: var(--space-3);
+            opacity: 0.3;
+        }
+        
+        .video-placeholder h3 {
+            font-size: var(--font-lg);
+            color: #e0e6ed;
+            margin-bottom: var(--space-2);
+        }
+        
+        .video-placeholder p {
+            font-size: var(--font-sm);
+            color: var(--slate-500);
+        }
+        
+        /* Detection Details */
+        .details-panel {
+            flex: 1;
+        }
+        
+        .detection-details {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-5);
+        }
+        
+        .alert-banner {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            padding: var(--space-4);
+            background: rgba(255, 51, 102, 0.1);
+            border: 1px solid rgba(255, 51, 102, 0.3);
+            border-radius: var(--radius-md);
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 51, 102, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(255, 51, 102, 0.4); }
+        }
+        
+        .alert-icon {
+            font-size: 32px;
+            animation: bounce 1s ease-in-out infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+        
+        .alert-content h3 {
+            font-size: var(--font-lg);
+            color: var(--red-400);
+            margin-bottom: var(--space-1);
+        }
+        
+        .alert-content p {
+            font-size: var(--font-sm);
+            color: var(--slate-500);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--space-4);
+        }
+        
+        .stat-card {
+            padding: var(--space-4);
+            background: rgba(10, 14, 26, 0.6);
+            border: 1px solid var(--slate-700);
+            border-radius: var(--radius-md);
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: var(--font-xs);
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-wide);
+            margin-bottom: var(--space-2);
+            font-weight: 500;
+        }
+        
+        .stat-value {
+            font-size: var(--font-xl);
+            font-weight: 600;
+            color: #e0e6ed;
+        }
+        
+        .stat-value.success {
+            color: var(--green-400);
+        }
+        
+        .stat-value.danger {
+            color: var(--red-400);
+        }
+        
+        .stat-value.warning {
+            color: var(--amber-400);
+        }
+        
+        .details-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-4);
+        }
+        
+        .section-title {
+            font-size: var(--font-sm);
+            color: var(--cyan-400);
+            text-transform: uppercase;
+            letter-spacing: var(--tracking-wide);
+            font-weight: 600;
+        }
+        
+        .detail-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-3);
+            background: rgba(10, 14, 26, 0.4);
+            border-radius: var(--radius-sm);
+        }
+        
+        .detail-label {
+            font-size: var(--font-sm);
+            color: var(--slate-500);
+        }
+        
+        .detail-value {
+            font-size: var(--font-sm);
+            color: #e0e6ed;
+            font-weight: 500;
+        }
+        
+        .detail-value.success {
+            color: var(--green-400);
+        }
+        
+        .detail-value.danger {
+            color: var(--red-400);
+        }
+        
+        /* Heatmap Panel */
+        .heatmap-panel {
+            flex: 1;
+        }
+        
+        .heatmap-panel .card-body {
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 500px;
+        }
+        
+        .heatmap-container {
+            height: 100%;
+            min-height: 500px;
+            background: var(--obsidian);
+            border-radius: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #heatmap {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        /* Actions Panel */
+        .actions-panel {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+        
+        .action-btn {
+            padding: var(--space-4);
+            background: rgba(26, 31, 46, 0.4);
+            border: 1px solid var(--slate-700);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all var(--transition-base);
+            font-size: var(--font-sm);
+            font-weight: 500;
+            color: #e0e6ed;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .action-btn.primary {
+            background: rgba(0, 217, 255, 0.1);
+            border-color: rgba(0, 217, 255, 0.3);
+            color: var(--cyan-400);
+        }
+        
+        .action-btn.primary:hover {
+            background: rgba(0, 217, 255, 0.2);
+            border-color: rgba(0, 217, 255, 0.4);
+            box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+        }
+        
+        .action-btn.secondary {
+            background: rgba(179, 136, 255, 0.1);
+            border-color: rgba(179, 136, 255, 0.3);
+            color: var(--purple-500);
+        }
+        
+        .action-btn.secondary:hover {
+            background: rgba(179, 136, 255, 0.2);
+            border-color: rgba(179, 136, 255, 0.4);
+            box-shadow: 0 0 20px rgba(179, 136, 255, 0.3);
+        }
+        
+        .action-btn.danger {
+            background: rgba(255, 51, 102, 0.1);
+            color: var(--red-400);
+            border-color: rgba(255, 51, 102, 0.3);
+        }
+        
+        .action-btn.danger:hover {
+            background: rgba(255, 51, 102, 0.25);
+            border-color: rgba(255, 51, 102, 0.4);
+            box-shadow: 0 0 20px rgba(255, 51, 102, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        /* ============================================
+           RESPONSIVE BREAKPOINTS
+           ============================================ */
+        @media (max-width: 1440px) {
+            :root {
+                --font-base: 15px;
+            }
+            
+            .content-grid {
+                gap: var(--space-5);
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 240px;
+            }
+            
+            main {
+                padding: var(--space-5);
+            }
+            
+            .content-grid {
+                grid-template-columns: 1fr;
+                gap: var(--space-5);
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                padding: 0 var(--space-4);
+            }
+            
+            .status-indicators {
+                display: none;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+            
+            main {
+                padding: var(--space-4);
+            }
+        }
+        
+        /* ============================================
+           LEAFLET CUSTOMIZATION
+           ============================================ */
+        .leaflet-container {
+            background: var(--obsidian) !important;
+        }
+        
+        .leaflet-tile-pane {
+            filter: brightness(0.9) contrast(1.1);
+        }
+        
+        /* ============================================
+           SCROLLBAR STYLING
+           ============================================ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        /* ============================================
+           THERMAL MAP & GLOBE STYLES
+           ============================================ */
+        #thermalMapOverlay {
+            display: none;
+            position: fixed;
+            top: 64px;
+            left: 280px;
+            right: 0;
+            bottom: 0;
+            background: var(--obsidian);
+            z-index: 1000;
+        }
+        
+        #thermalMapContainer {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        #deckglCanvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #globeContainer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            border: 2px solid var(--cyan-400);
+            border-radius: var(--radius-lg);
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow: 0 8px 32px rgba(0, 217, 255, 0.3);
+            overflow: hidden;
+        }
+        
+        .thermal-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            min-width: 250px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+        
+        .thermal-controls h3 {
+            font-family: var(--font-heading);
+            font-size: var(--font-lg);
+            color: var(--cyan-400);
+            margin-bottom: var(--space-4);
+        }
+        
+        .control-group {
+            margin-bottom: var(--space-4);
+        }
+        
+        .control-label {
+            font-size: var(--font-sm);
+            color: var(--slate-500);
+            margin-bottom: var(--space-2);
+            display: block;
+        }
+        
+        .control-slider {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--slate-700);
+            outline: none;
+            
+        }
+        
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--cyan-400);
+            cursor: pointer;
+            box-shadow: 0 0 10px var(--cyan-400);
+        }
+        
+        .control-slider::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--cyan-400);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px var(--cyan-400);
+        }
+        
+        .close-thermal {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: var(--red-500);
+            color: white;
+            border: none;
+            padding: var(--space-3) var(--space-6);
+            border-radius: var(--radius-md);
+            font-size: var(--font-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            box-shadow: 0 4px 12px rgba(255, 23, 68, 0.3);
+        }
+        
+        .close-thermal:hover {
+            background: var(--red-400);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(255, 23, 68, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">⚡</div>
+                <div class="logo-text">
+                    <h1>AeroGuard AI</h1>
+                    <p>Enterprise Command</p>
+                </div>
+            </div>
+            
+            <div class="header-right">
+                <div class="status-indicators">
+                    <div class="status-item">
+                        <span class="status-label">System</span>
+                        <span class="status-value">ACTIVE</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Status</span>
+                        <span class="status-value">MONITORING</span>
+                    </div>
+                </div>
+                
+                <div class="clock" id="clock">00:00:00</div>
+                
+                <div class="notification-bell">
+                    🔔
+                    <span class="notification-badge">3</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Container -->
+        <div class="main-container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav-section">
+                    <div class="nav-title">Navigation</div>
+                    <div class="nav-item active">
+                        <span class="nav-icon">🔥</span>
+                        <span>Fire Detection</span>
+                    </div>
+                    <div class="nav-item">
+                        <span class="nav-icon">📊</span>
+                        <span>Analytics</span>
+                    </div>
+                </nav>
+                
+                <nav class="nav-section">
+                    <div class="nav-title">Reports</div>
+                    <div class="nav-item disabled">
+                        <span class="nav-icon">📋</span>
+                        <span>Incident Logs</span>
+                    </div>
+                    <div class="nav-item disabled">
+                        <span class="nav-icon">📈</span>
+                        <span>Statistics</span>
+                    </div>
+                </nav>
+            </aside>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="app.js"></script>
+
+            
+            <!-- Main Content -->
+            <main>
+                <div class="content-grid">
+                    <!-- Left Column -->
+                    <div class="left-column">
+                        <!-- Drone Video Feed -->
+                           <!-- Drone Video Feed -->
+<div class="card video-panel">
+    <div class="card-header">🚁 Live Drone Feed</div>
+    <div class="card-body">
+        <div class="video-container">
+            <img 
+                src="http://localhost:5000/video"
+                style="width:100%; height:100%; object-fit:cover; border-radius:12px;"
+            >
+        </div>
+    </div>
+</div>
+
+                        
+                        <!-- Detection Details -->
+                        <div class="card details-panel">
+                            <div class="card-header">🎯 Detection Details</div>
+                            <div class="card-body">
+                                <div class="detection-details">
+                                    <div class="alert-banner">
+                                        <div class="alert-icon">🚨</div>
+                                        <div class="alert-content">
+                                            <h3>Active Fire Detected</h3>
+                                            <p id="date">29 JAN 2026 UTC</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="stats-grid">
+                                        <div class="stat-card">
+                                            <div class="stat-label">Confidence</div>
+                                            <div class="stat-value success" id="confidence">95%</div>
+                                        </div>
+                                        <div class="stat-card">
+                                            <div class="stat-label">Severity</div>
+                                            <div class="stat-value danger">CRITICAL</div>
+                                        </div>
+                                     
+                                        
+                                    </div>
+                                    
+                                    <div class="details-section">
+                                        <div class="section-title">Incident Information</div>
+                                        
+                                        <div class="detail-group">
+                                            <div class="detail-item">
+                                                <span class="detail-label">Location</span>
+                                                <span class="detail-value">34.052° N, 118.243° W</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Time</span>
+                                                <span class="detail-value success" id="detection-time">15:45 UTC</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="detail-group">
+                                            <div class="detail-item">
+                                                <span class="detail-label">Registry</span>
+                                                <span class="detail-value">—</span>
+                                            </div>
+                                            <div class="detail-item">
+                                                <span class="detail-label">Area Affected</span>
+                                                <span class="detail-value danger">50 Acres</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column -->
+                    <div class="right-column">
+                        <!-- Thermal Heatmap -->
+                        <div class="card heatmap-panel">
+                            <div class="card-header">
+                                🌡️ Thermal Heatmap
+                                <div style="margin-left:auto; display:flex; gap:8px;">
+                                    <button id="normalMapBtn" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #00d9ff; background: rgba(0,217,255,0.1); color: #00d9ff; cursor: pointer;">Normal</button>
+                                    <button id="thermalMapBtn" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #00d9ff; background: rgba(0,217,255,0.1); color: #00d9ff; cursor: pointer;">Thermal</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="heatmap-container" style="position:relative;">
+                                    <div id="heatmap"></div>
+                                    <!-- Thermal Deck.gl Overlay -->
+                                    <div id="thermalOverlay" style="display:none; position:absolute; top:0; left:0; right:0; bottom:0; pointer-events:none;">
+                                        <div id="deckglCanvas" style="width:100%; height:100%; pointer-events:all;"></div>
+                                        <div id="globeContainer" style="position:absolute; bottom:10px; right:10px; width:150px; height:150px; border:2px solid #00d9ff; border-radius:12px; background:rgba(0,0,0,0.9); box-shadow:0 8px 32px rgba(0,217,255,0.3); overflow:hidden; pointer-events:all;"></div>
+                                        
+                                        <div class="thermal-controls" style="position:absolute; top:10px; right:10px; background:rgba(26,31,46,0.95); backdrop-filter:blur(24px); border:1px solid rgba(0,217,255,0.15); border-radius:8px; padding:12px; min-width:200px; box-shadow:0 8px 32px rgba(0,0,0,0.6); pointer-events:all; max-height:300px; overflow-y:auto;">
+                                            <h4 style="font-size:0.9rem; color:#00d9ff; margin-bottom:10px;">⚙️ Controls</h4>
+                                            
+                                            <div style="margin-bottom:12px;">
+                                                <label style="font-size:0.7rem; color:#505668; margin-bottom:4px; display:block;">Intensity</label>
+                                                <input type="range" id="intensitySlider" min="0" max="100" value="50" style="width:100%; height:4px;">
+                                                <span id="intensityValue" style="color:#00d9ff; font-size:0.7rem;">50</span>
+                                            </div>
+                                            
+                                            <div style="margin-bottom:12px;">
+                                                <label style="font-size:0.7rem; color:#505668; margin-bottom:4px; display:block;">Radius</label>
+                                                <input type="range" id="radiusSlider" min="100" max="5000" value="1000" step="100" style="width:100%; height:4px;">
+                                                <span id="radiusValue" style="color:#00d9ff; font-size:0.7rem;">1000m</span>
+                                            </div>
+                                            
+                                            <div style="margin-bottom:12px;">
+                                                <label style="font-size:0.7rem; color:#505668; margin-bottom:4px; display:block;">Opacity</label>
+                                                <input type="range" id="opacitySlider" min="0" max="100" value="80" style="width:100%; height:4px;">
+                                                <span id="opacityValue" style="color:#00d9ff; font-size:0.7rem;">80%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Actions -->
+                        <div class="card">
+                            <div class="card-header">⚡ Actionable Insights</div>
+                            <div class="card-body">
+                                <div class="actions-panel">
+                                    <button class="action-btn primary">
+                                        <span>🚁 Dispatch Fire Drones</span>
+                                    </button>
+                                    <button class="action-btn secondary">
+                                        <span>📡 Alert Authorities</span>
+                                    </button>
+                                    <button class="action-btn danger">
+                                        <span>🚨 Evacuation Plan</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    <div id="cardSat"></div>
+<div id="cardLocal"></div>
+<div id="cardStatus"></div>
+
+<div id="mapBox" style="height:500px;"></div>
+
+<div id="detectionsList"></div>
+
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Leaflet MarkerCluster JS for performance -->
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="app.js"></script>
+
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Clock and Date
+        function updateClock() {
+            const now = new Date();
+            const hours = String(now.getUTCHours()).padStart(2, '0');
+            const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+            const seconds = String(now.getUTCSeconds()).padStart(2, '0');
+            document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const day = String(now.getUTCDate()).padStart(2, '0');
+            const month = months[now.getUTCMonth()];
+            const year = now.getUTCFullYear();
+            document.getElementById('date').textContent = `${day} ${month} ${year} UTC`;
+        }
+        
+        setInterval(updateClock, 1000);
+        updateClock();
+        
+        // Detection Time
+        function updateDetectionTime() {
+            const now = new Date();
+            const hours = String(now.getUTCHours()).padStart(2, '0');
+            const minutes = String(now.getUTCMinutes()).padStart(2, '0');
+            document.getElementById('detection-time').textContent = `${hours}:${minutes} UTC`;
+        }
+        
+        setInterval(updateDetectionTime, 60000);
+        updateDetectionTime();
+        
+        // Confidence Animation
+        function animateConfidence() {
+            const confElement = document.getElementById('confidence');
+            setInterval(() => {
+                const conf = 93 + Math.floor(Math.random() * 5);
+                confElement.textContent = `${conf}%`;
+            }, 2000);
+        }
+        
+        animateConfidence();
+        
+        // ============================================
+        // MAP INITIALIZATION - FIXED VERSION
+        // ============================================
+
+        // Initialize the map
+        const firmsMap = L.map('heatmap', {
+            center: [22, 78], // India
+            zoom: 5,
+            zoomControl: true,
+            attributionControl: true
+        });
+
+        // 🌍 NORMAL MAP (DEFAULT) - Satellite imagery
+        const normalTileLayer = L.tileLayer(
+            'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            { 
+                maxZoom: 19,
+                attribution: 'Esri'
+            }
+        ).addTo(firmsMap);
+
+        // 🌡️ THERMAL BASE MAP - Dark background for thermal view
+        const thermalBaseLayer = L.tileLayer(
+            'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            { 
+                maxZoom: 19,
+                attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+            }
+        );
+
+        // 🔥 NASA VIIRS Fire Layer - Dynamic date
+        function getTodayDateString() {
+            const today = new Date();
+            today.setDate(today.getDate() - 1); // Use yesterday's date for available data
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        const nasaFireLayer = L.tileLayer(
+            "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/" +
+            "VIIRS_NOAA20_Thermal_Anomalies_375m_Recent/default/" +
+            getTodayDateString() + "/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png",
+            {
+                tileSize: 256,
+                maxZoom: 9,
+                opacity: 0.8,
+                attribution: 'NASA EOSDIS GIBS'
+            }
+        ).addTo(firmsMap);
+
+        // Handle tile loading errors
+        nasaFireLayer.on('tileerror', function(error, tile) {
+            console.warn('NASA GIBS tile failed to load, this is normal for areas without fire data');
+        });
+
+        // ============================================
+        // FIRMS THERMAL HEATMAP (RASTER STYLE)
+        // ============================================
+        let rasterFireLayer = null;
+
+        async function loadRasterFireMap() {
+            try {
+                const res = await fetch("http://localhost:3000/api/firms");
+                
+                if (!res.ok) {
+                    console.error('FIRMS API not available, using NASA data only');
+                    return;
+                }
+                
+                const data = await res.json();
+
+                if (!data.fires || !Array.isArray(data.fires)) {
+                    console.warn('No fire data available from FIRMS API');
+                    return;
+                }
+
+                if (rasterFireLayer) {
+                    firmsMap.removeLayer(rasterFireLayer);
+                }
+                rasterFireLayer = L.layerGroup();
+
+                const grid = {};
+
+                // Aggregate fire points into grid cells
+                data.fires.forEach(f => {
+                    if (!f.lat || !f.lon || !f.intensity) return;
+
+                    const lat = Math.round(f.lat * 2) / 2;
+                    const lon = Math.round(f.lon * 2) / 2;
+                    const key = `${lat}_${lon}`;
+
+                    grid[key] = (grid[key] || 0) + Number(f.intensity);
+                });
+
+                // Create colored rectangles for each grid cell
+                Object.entries(grid).forEach(([key, value]) => {
+                    if (value < 150) return;
+
+                    const [lat, lon] = key.split("_").map(Number);
+
+                    const color =
+                        value > 900 ? "#ff0000" :  // Red - Very High
+                        value > 700 ? "#ff7b00" :  // Orange - High
+                        value > 500 ? "#ffff00" :  // Yellow - Medium
+                        value > 300 ? "#00ff6a" :  // Green - Low
+                                      "#00b0ff";   // Blue - Very Low
+
+                    rasterFireLayer.addLayer(
+                        L.rectangle(
+                            [[lat - 0.25, lon - 0.25], [lat + 0.25, lon + 0.25]],
+                            {
+                                fillColor: color,
+                                fillOpacity: 0.65,
+                                stroke: false
+                            }
+                        )
+                    );
+                });
+
+                rasterFireLayer.addTo(firmsMap);
+                console.log(`Loaded ${Object.keys(grid).length} fire hotspots`);
+                
+            } catch (error) {
+                console.error('Error loading FIRMS data:', error);
+            }
+        }
+
+        // ============================================
+        // BUTTON TOGGLE FUNCTIONALITY
+        // ============================================
+
+        // 🟢 NORMAL VIEW: Satellite + NASA Fire Layer
+        document.getElementById('normalMapBtn').onclick = () => {
+            firmsMap.addLayer(normalTileLayer);
+            firmsMap.removeLayer(thermalBaseLayer);
+
+            if (rasterFireLayer) {
+                firmsMap.removeLayer(rasterFireLayer);
+            }
+            firmsMap.addLayer(nasaFireLayer);
+            
+            console.log('Switched to Normal Map view');
+        };
+
+        // 🔴 THERMAL VIEW: Dark Base + Custom Fire Heatmap
+        document.getElementById('thermalMapBtn').onclick = async () => {
+            firmsMap.removeLayer(normalTileLayer);
+            firmsMap.addLayer(thermalBaseLayer);
+
+            firmsMap.removeLayer(nasaFireLayer);
+            await loadRasterFireMap();
+
+            // Fit bounds to India
+            firmsMap.fitBounds(
+                [[6, 68], [36, 97]],
+                { padding: [20, 20], maxZoom: 5 }
+            );
+            
+            console.log('Switched to Thermal Map view');
+        };
+
+        // Initial map load - ensure tiles are loaded
+        setTimeout(() => {
+            firmsMap.invalidateSize();
+        }, 100);
+
+        console.log('Map initialized successfully');
+
+        // ============================================
+        // REAL-TIME DETECTION STATUS INTEGRATION
+        // ============================================
+        
+        let detectionMarker = null;
+        const DETECTION_API = "http://localhost:5000/api/detection-status";
+        const UPDATE_INTERVAL = 500; // Update every 500ms
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        
+        // Update the Incident Information section with live data
+        async function updateDetectionStatus() {
+            try {
+                const response = await fetch(DETECTION_API);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                reconnectAttempts = 0;
+                
+                // Update Location
+                const locationElement = document.querySelector('.detail-item:nth-child(1) .detail-value');
+                if (locationElement && data.location) {
+                    const lat = data.location.lat.toFixed(6);
+                    const lon = data.location.lon.toFixed(6);
+                    const latDir = data.location.lat >= 0 ? 'N' : 'S';
+                    const lonDir = data.location.lon >= 0 ? 'E' : 'W';
+                    locationElement.textContent = `${Math.abs(lat)}° ${latDir}, ${Math.abs(lon)}° ${lonDir}`;
+                }
+                
+                // Update Time
+                const timeElement = document.getElementById('detection-time');
+                if (timeElement && data.timestamp) {
+                    const detectionTime = new Date(data.timestamp * 1000);
+                    const hours = String(detectionTime.getUTCHours()).padStart(2, '0');
+                    const minutes = String(detectionTime.getUTCMinutes()).padStart(2, '0');
+                    const seconds = String(detectionTime.getUTCSeconds()).padStart(2, '0');
+                    timeElement.textContent = `${hours}:${minutes}:${seconds} UTC`;
+                    
+                    if (data.fire_detected) {
+                        timeElement.className = 'detail-value danger';
+                    } else {
+                        timeElement.className = 'detail-value success';
+                    }
+                }
+                
+                // Update Confidence
+                const confidenceElement = document.getElementById('confidence');
+                if (confidenceElement && data.confidence !== undefined) {
+                    const confPercent = (data.confidence * 100).toFixed(1);
+                    confidenceElement.textContent = `${confPercent}%`;
+                    
+                    if (data.confidence > 0.8) {
+                        confidenceElement.className = 'stat-value danger';
+                    } else if (data.confidence > 0.5) {
+                        confidenceElement.className = 'stat-value warning';
+                    } else {
+                        confidenceElement.className = 'stat-value success';
+                    }
+                }
+                
+                // Update Alert Banner
+                const alertBanner = document.querySelector('.alert-banner h3');
+                if (alertBanner) {
+                    alertBanner.textContent = data.fire_detected ? 
+                        'Active Fire Detected' : 
+                        'System Monitoring';
+                }
+                
+                const alertIcon = document.querySelector('.alert-icon');
+                if (alertIcon) {
+                    alertIcon.textContent = data.fire_detected ? '🚨' : '✓';
+                }
+                
+                // Update Severity
+                const severityElement = document.querySelector('.stat-card:nth-child(2) .stat-value');
+                if (severityElement) {
+                    if (data.fire_detected) {
+                        if (data.confidence > 0.9) {
+                            severityElement.textContent = 'CRITICAL';
+                            severityElement.className = 'stat-value danger';
+                        } else if (data.confidence > 0.7) {
+                            severityElement.textContent = 'HIGH';
+                            severityElement.className = 'stat-value warning';
+                        } else {
+                            severityElement.textContent = 'MODERATE';
+                            severityElement.className = 'stat-value warning';
+                        }
+                    } else {
+                        severityElement.textContent = 'NORMAL';
+                        severityElement.className = 'stat-value success';
+                    }
+                }
+                
+                // Update map marker
+                if (data.fire_detected && data.location) {
+                    if (detectionMarker) {
+                        firmsMap.removeLayer(detectionMarker);
+                    }
+                    
+                    detectionMarker = L.circleMarker(
+                        [data.location.lat, data.location.lon],
+                        {
+                            radius: 12,
+                            color: '#ff3366',
+                            fillColor: '#ff3366',
+                            fillOpacity: 0.8,
+                            weight: 3
+                        }
+                    ).addTo(firmsMap);
+                    
+                    detectionMarker.bindPopup(`
+                        <div style="font-family: Inter, sans-serif; padding: 8px;">
+                            <strong style="color: #ff3366;">🔥 Live Fire Detection</strong><br>
+                            <strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%<br>
+                            <strong>Location:</strong> ${data.location.lat.toFixed(6)}, ${data.location.lon.toFixed(6)}<br>
+                            <strong>Time:</strong> ${new Date(data.timestamp * 1000).toLocaleTimeString()} UTC
+                        </div>
+                    `).openPopup();
+                }
+                
+                updateConnectionStatus(true);
+                
+            } catch (error) {
+                console.error('Error fetching detection status:', error);
+                reconnectAttempts++;
+                updateConnectionStatus(false);
+                
+                if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                    console.warn(`Backend connection lost. Attempted ${reconnectAttempts} times.`);
+                    
+                    const alertBanner = document.querySelector('.alert-banner h3');
+                    if (alertBanner) {
+                        alertBanner.textContent = 'Backend Disconnected';
+                    }
+                }
+            }
+        }
+        
+        // Connection status indicator
+        function updateConnectionStatus(connected) {
+            let statusIndicator = document.getElementById('ml-backend-status');
+            
+            if (!statusIndicator) {
+                const headerRight = document.querySelector('.header-right');
+                const statusContainer = document.createElement('div');
+                statusContainer.className = 'status-item';
+                statusContainer.style.marginRight = '20px';
+                statusContainer.innerHTML = `
+                    <span class="status-label">ML Backend</span>
+                    <span class="status-value" id="ml-backend-status">CHECKING</span>
+                `;
+                headerRight.insertBefore(statusContainer, headerRight.firstChild);
+                statusIndicator = document.getElementById('ml-backend-status');
+            }
+            
+            if (connected) {
+                statusIndicator.textContent = 'ONLINE';
+                statusIndicator.style.color = '#00ff88';
+            } else {
+                statusIndicator.textContent = 'OFFLINE';
+                statusIndicator.style.color = '#ff3366';
+            }
+        }
+        
+        // Start real-time updates
+        console.log('🔥 Starting real-time detection status updates...');
+        updateDetectionStatus();
+        setInterval(updateDetectionStatus, UPDATE_INTERVAL);
+        
+        // Health check
+        fetch('http://localhost:5000/api/health')
+            .then(res => res.json())
+            .then(data => {
+                console.log('✓ ML Backend health check:', data);
+            })
+            .catch(err => {
+                console.error('✗ ML Backend health check failed:', err);
+                console.log('Make sure detect_fire_realtime.py is running on port 5000');
+            });
+    </script>
+
+
+    <!-- ================== ANALYTICS ADD-ON (DROP IN) ================== -->
+<div id="analyticsOverlay" style="
+display:none;
+position:fixed;
+top:64px;
+left:280px;
+right:0;
+bottom:0;
+background:#0a0e1a;
+z-index:9999;
+overflow:auto;
+padding:30px;
+color:white;
+">
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:30px;">
+  <h2 style="font-family:var(--font-heading);font-size:var(--font-2xl);color:#00d9ff;">📊 Fire Analytics Dashboard</h2>
+  <button onclick="analyticsClose()" class="action-btn danger" style="padding:10px 24px;background:rgba(255,51,102,0.2);border:1px solid #ff3366;color:#ff3366;cursor:pointer;border-radius:8px;font-weight:600;transition:all 0.2s;">
+    ⬅ Back to Detection
+  </button>
+</div>
+
+<!-- Stats Overview -->
+<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:20px;margin-bottom:30px;">
+  <div class="stat-card" style="background:linear-gradient(135deg, #1a1f2e, #252b3d);padding:20px;border-radius:12px;border:1px solid rgba(0,217,255,0.2);">
+    <div class="stat-label" style="color:#999;font-size:0.85em;margin-bottom:8px;">Local Fires</div>
+    <div class="stat-value" style="color:#00d9ff;font-size:2em;font-weight:700;" id="anaLocal">0</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg, #1a1f2e, #252b3d);padding:20px;border-radius:12px;border:1px solid rgba(255,179,0,0.2);">
+    <div class="stat-label" style="color:#999;font-size:0.85em;margin-bottom:8px;">Satellite Fires</div>
+    <div class="stat-value" style="color:#ffb300;font-size:2em;font-weight:700;" id="anaSat">0</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg, #1a1f2e, #252b3d);padding:20px;border-radius:12px;border:1px solid rgba(0,255,136,0.2);">
+    <div class="stat-label" style="color:#999;font-size:0.85em;margin-bottom:8px;">Avg Confidence</div>
+    <div class="stat-value" style="color:#00ff88;font-size:2em;font-weight:700;" id="anaConf">0%</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg, #1a1f2e, #252b3d);padding:20px;border-radius:12px;border:1px solid rgba(255,51,102,0.2);">
+    <div class="stat-label" style="color:#999;font-size:0.85em;margin-bottom:8px;">Total Fires</div>
+    <div class="stat-value" style="color:#ff3366;font-size:2em;font-weight:700;" id="anaTotalFires">0</div>
+  </div>
+  <div class="stat-card" style="background:linear-gradient(135deg, #1a1f2e, #252b3d);padding:20px;border-radius:12px;border:1px solid rgba(179,136,255,0.2);">
+    <div class="stat-label" style="color:#999;font-size:0.85em;margin-bottom:8px;">System</div>
+    <div class="stat-value" style="color:#b388ff;font-size:2em;font-weight:700;" id="anaStatus">--</div>
+  </div>
+</div>
+
+<!-- Charts Grid -->
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:20px;">
+  <!-- Detection Trend -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(0,217,255,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#00d9ff;margin-bottom:15px;">📈 Detection Trend</div>
+    <div class="card-body" style="height:250px;">
+      <canvas id="anaTrend"></canvas>
+    </div>
+  </div>
+  
+  <!-- Confidence Distribution -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(255,179,0,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#ffb300;margin-bottom:15px;">🎯 Confidence Distribution</div>
+    <div class="card-body" style="height:250px;">
+      <canvas id="anaConfChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Second Row Charts -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+  <!-- Hourly Activity -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(0,217,255,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#00d9ff;margin-bottom:15px;">⏰ Hourly Activity</div>
+    <div class="card-body" style="height:200px;">
+      <canvas id="anaHourlyChart"></canvas>
+    </div>
+  </div>
+  
+  <!-- Fire Clusters -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(255,51,102,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#ff3366;margin-bottom:15px;">🔥 Top Fire Clusters</div>
+    <div class="card-body" style="height:200px;">
+      <canvas id="anaHeatmap"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Row -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;">
+  <!-- Recent Fires -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(0,255,136,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#00ff88;margin-bottom:15px;">🔥 Recent Detections</div>
+    <div class="card-body" style="max-height:300px;overflow-y:auto;" id="anaList">
+      <div style="opacity:0.6;text-align:center;padding:20px;">Loading...</div>
+    </div>
+  </div>
+  
+  <!-- Top Locations -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(179,136,255,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#b388ff;margin-bottom:15px;">📍 Top Locations</div>
+    <div class="card-body" style="max-height:300px;overflow-y:auto;" id="anaTopLocations">
+      <div style="opacity:0.6;text-align:center;padding:20px;">Loading...</div>
+    </div>
+  </div>
+  
+  <!-- Intensity Gauge -->
+  <div class="card" style="background:rgba(26,31,46,0.6);border:1px solid rgba(255,179,0,0.2);border-radius:12px;padding:20px;">
+    <div class="card-header" style="font-size:1.1em;font-weight:600;color:#ffb300;margin-bottom:15px;">⚡ Intensity Metrics</div>
+    <div class="card-body" id="anaIntensityGauge">
+      <div style="opacity:0.6;text-align:center;padding:20px;">Loading...</div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<script>
+// ============================================
+// GLOBAL NAVIGATION CONTROLLER
+// ============================================
+
+// Navigation state manager
+const NavigationManager = {
+    currentPage: 'main',
+    
+    showMain() {
+        this.hideAll();
+        document.querySelector('.content-grid').style.display = 'grid';
+        this.currentPage = 'main';
+        this.setActiveNav(0);
+    },
+    
+    showAnalytics() {
+        this.hideAll();
+        const analyticsOverlay = document.getElementById('analyticsOverlay');
+        if (analyticsOverlay) {
+            analyticsOverlay.style.display = 'block';
+        }
+        this.currentPage = 'analytics';
+        this.setActiveNav(1);
+        loadAnalytics();
+    },
+    
+    hideAll() {
+        const contentGrid = document.querySelector('.content-grid');
+        if (contentGrid) {
+            contentGrid.style.display = 'none';
+        }
+        const analyticsOverlay = document.getElementById('analyticsOverlay');
+        if (analyticsOverlay) {
+            analyticsOverlay.style.display = 'none';
+        }
+    },
+    
+    setActiveNav(index) {
+        const navItems = document.querySelectorAll('.nav-section .nav-item');
+        navItems.forEach((nav, i) => {
+            if (i === index) {
+                nav.classList.add('active');
+            } else {
+                nav.classList.remove('active');
+            }
+        });
+    }
+};
+
+// Setup navigation click handlers
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Setting up navigation handlers...');
+    
+    const navItems = document.querySelectorAll('.nav-section .nav-item');
+    console.log('Found nav items:', navItems.length);
+    
+    // Fire Detection (index 0)
+    if (navItems[0]) {
+        navItems[0].onclick = () => {
+            console.log('Switching to Fire Detection');
+            NavigationManager.showMain();
+        };
+    }
+    
+    // Analytics (index 1) -> navigate to standalone analytics page
+    if (navItems[1]) {
+        navItems[1].onclick = () => {
+            console.log('Switching to Analytics (legacy page)');
+            window.location.href = "analytics_legacy.html";
+        };
+    }
+    
+    console.log('Navigation setup complete');
+});
+
+// Standalone functions for backward compatibility
+function analyticsOpen() {
+    window.location.href = "analytics_legacy.html";
+}
+
+function analyticsClose() {
+    NavigationManager.showMain();
+}
+
+// ============================================
+// ENHANCED ANALYTICS DASHBOARD
+// ============================================
+
+let anaChart, anaConfChart, anaHourlyChart, anaHeatmapChart;
+
+async function loadAnalytics(){
+ try{
+  console.log('Loading analytics data...');
+  
+  // Fetch data with timeout and error handling
+  const fetchWithTimeout = (url, timeout = 5000) => {
+    return Promise.race([
+      fetch(url),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout')), timeout)
+      )
+    ]);
+  };
+  
+  let local = [];
+  let sat = { fires: [] };
+  let status = { system: 'OFFLINE' };
+  
+  try {
+    const [a, b, c] = await Promise.all([
+      fetchWithTimeout("http://localhost:3000/api/local-fires").catch(() => null),
+      fetchWithTimeout("http://localhost:3000/api/firms").catch(() => null),
+      fetchWithTimeout("http://localhost:3000/api/status").catch(() => null)
+    ]);
+    
+    if (a && a.ok) local = await a.json();
+    if (b && b.ok) sat = await b.json();
+    if (c && c.ok) status = await c.json();
+    
+    console.log('Loaded:', local.length, 'local fires,', sat.fires.length, 'satellite fires');
+  } catch (error) {
+    console.warn('Backend not responding, using demo data');
+    // Generate demo data for testing when backend is not running
+    local = generateDemoLocalFires(20);
+    sat = { fires: generateDemoSatFires(150) };
+    status = { system: 'DEMO MODE' };
+  }
+
+  // Update stat cards
+  document.getElementById("anaLocal").textContent = local.length || 0;
+  document.getElementById("anaSat").textContent = (sat.fires || []).length;
+  document.getElementById("anaStatus").textContent = (status.system || 'UNKNOWN').toUpperCase();
+
+  const avg = local.length
+    ? (local.reduce((s,f)=>s+(f.confidence||0),0)/local.length*100).toFixed(1)
+    : 0;
+  document.getElementById("anaConf").textContent = avg+"%";
+  
+  // Update total fires count
+  document.getElementById("anaTotalFires").textContent = local.length + (sat.fires || []).length;
+
+  // Build all charts with the data
+  buildTrendChart(local);
+  buildConfidenceDistribution(local);
+  buildHourlyActivity(local);
+  buildFireHeatmap(sat.fires || []);
+  buildRecentFiresList(local);
+  buildTopLocations(local);
+  buildFireIntensityGauge(local, sat.fires || []);
+  
+  console.log('Analytics loaded successfully');
+
+ }catch(e){
+  console.error("Analytics load error:", e);
+  // Show error state
+  document.getElementById("anaStatus").textContent = "ERROR";
+  document.getElementById("anaStatus").style.color = "#ff3366";
+ }
+}
+
+// Generate demo data for testing
+function generateDemoLocalFires(count) {
+  const fires = [];
+  const now = Date.now();
+  for (let i = 0; i < count; i++) {
+    fires.push({
+      lat: 20 + Math.random() * 10,
+      lon: 75 + Math.random() * 10,
+      confidence: 0.5 + Math.random() * 0.5,
+      time: new Date(now - Math.random() * 24 * 60 * 60 * 1000).toISOString()
+    });
+  }
+  return fires;
+}
+
+function generateDemoSatFires(count) {
+  const fires = [];
+  for (let i = 0; i < count; i++) {
+    fires.push({
+      lat: 15 + Math.random() * 20,
+      lon: 70 + Math.random() * 20,
+      intensity: 250 + Math.random() * 300
+    });
+  }
+  return fires;
+}
+
+// Trend line chart
+function buildTrendChart(fires){
+ const buckets={};
+ fires.forEach(f=>{
+  if(!f.time) return;
+  const h=new Date(f.time).getHours();
+  buckets[h]=(buckets[h]||0)+1;
+ });
+
+ if(anaChart) anaChart.destroy();
+
+ anaChart = new Chart(
+  document.getElementById("anaTrend"),
+  {
+   type:"line",
+   data:{
+    labels:Object.keys(buckets).map(h => h + ':00'),
+    datasets:[{
+      label:"Fire Detections",
+      data:Object.values(buckets),
+      borderColor: '#00d9ff',
+      backgroundColor: 'rgba(0, 217, 255, 0.1)',
+      tension: 0.4,
+      fill: true
+    }]
+   },
+   options: {
+     responsive: true,
+     maintainAspectRatio: false,
+     plugins: {
+       legend: { display: true, labels: { color: '#fff' } }
+     },
+     scales: {
+       y: { 
+         ticks: { color: '#999' },
+         grid: { color: 'rgba(255,255,255,0.1)' }
+       },
+       x: { 
+         ticks: { color: '#999' },
+         grid: { color: 'rgba(255,255,255,0.1)' }
+       }
+     }
+   }
+  }
+ );
+}
+
+// Confidence distribution pie chart
+function buildConfidenceDistribution(fires) {
+  const low = fires.filter(f => f.confidence < 0.5).length;
+  const medium = fires.filter(f => f.confidence >= 0.5 && f.confidence < 0.8).length;
+  const high = fires.filter(f => f.confidence >= 0.8).length;
+  
+  if(anaConfChart) anaConfChart.destroy();
+  
+  anaConfChart = new Chart(
+    document.getElementById("anaConfChart"),
+    {
+      type: "doughnut",
+      data: {
+        labels: ["Low (<50%)", "Medium (50-80%)", "High (>80%)"],
+        datasets: [{
+          data: [low, medium, high],
+          backgroundColor: ['#ffb300', '#ff7b00', '#ff3366'],
+          borderColor: '#0a0e1a',
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { 
+            display: true, 
+            position: 'bottom',
+            labels: { color: '#fff', padding: 15 }
+          }
+        }
+      }
+    }
+  );
+}
+
+// Hourly activity bar chart
+function buildHourlyActivity(fires) {
+  const hourlyData = new Array(24).fill(0);
+  fires.forEach(f => {
+    if(!f.time) return;
+    const hour = new Date(f.time).getHours();
+    hourlyData[hour]++;
+  });
+  
+  if(anaHourlyChart) anaHourlyChart.destroy();
+  
+  anaHourlyChart = new Chart(
+    document.getElementById("anaHourlyChart"),
+    {
+      type: "bar",
+      data: {
+        labels: Array.from({length: 24}, (_, i) => i + ':00'),
+        datasets: [{
+          label: "Fires per Hour",
+          data: hourlyData,
+          backgroundColor: 'rgba(0, 217, 255, 0.6)',
+          borderColor: '#00d9ff',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: { 
+            ticks: { color: '#999' },
+            grid: { color: 'rgba(255,255,255,0.1)' },
+            beginAtZero: true
+          },
+          x: { 
+            ticks: { color: '#999', maxRotation: 0 },
+            grid: { display: false }
+          }
+        }
+      }
+    }
+  );
+}
+
+// Fire intensity heatmap
+function buildFireHeatmap(fires) {
+  // Group fires by region
+  const regionData = {};
+  fires.slice(0, 100).forEach(f => {
+    const region = `${Math.floor(f.lat/5)*5},${Math.floor(f.lon/5)*5}`;
+    regionData[region] = (regionData[region] || 0) + 1;
+  });
+  
+  const sortedRegions = Object.entries(regionData)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10);
+  
+  if(anaHeatmapChart) anaHeatmapChart.destroy();
+  
+  anaHeatmapChart = new Chart(
+    document.getElementById("anaHeatmap"),
+    {
+      type: "bar",
+      data: {
+        labels: sortedRegions.map(([region]) => region),
+        datasets: [{
+          label: "Fire Clusters",
+          data: sortedRegions.map(([, count]) => count),
+          backgroundColor: sortedRegions.map(([, count]) => {
+            if (count > 50) return '#ff3366';
+            if (count > 20) return '#ff7b00';
+            return '#ffb300';
+          }),
+          borderColor: '#0a0e1a',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          x: { 
+            ticks: { color: '#999' },
+            grid: { color: 'rgba(255,255,255,0.1)' }
+          },
+          y: { 
+            ticks: { color: '#999' },
+            grid: { display: false }
+          }
+        }
+      }
+    }
+  );
+}
+
+// Recent fires list
+function buildRecentFiresList(fires){
+ const listHtml = fires.length === 0 
+   ? '<div style="opacity:0.6;text-align:center;padding:20px;">No detections yet</div>'
+   : fires.slice(-15).reverse().map((f, i) => `
+     <div class="detail-item" style="padding:12px;border-bottom:1px solid rgba(255,255,255,0.1);">
+       <div style="display:flex;justify-content:space-between;align-items:center;">
+         <div>
+           <span style="color:#00d9ff;font-weight:600;">Fire #${fires.length - i}</span>
+           <div style="font-size:0.9em;color:#999;margin-top:4px;">
+             📍 ${(f.lat||0).toFixed(4)}, ${(f.lon||0).toFixed(4)}
+           </div>
+         </div>
+         <div style="text-align:right;">
+           <div style="color:#00ff88;font-weight:600;font-size:1.1em;">
+             ${((f.confidence||0)*100).toFixed(1)}%
+           </div>
+           <div style="font-size:0.85em;color:#999;">
+             ${new Date(f.time).toLocaleTimeString()}
+           </div>
+         </div>
+       </div>
+     </div>
+   `).join('');
+   
+ document.getElementById("anaList").innerHTML = listHtml;
+}
+
+// Top locations by fire count
+function buildTopLocations(fires) {
+  const locations = {};
+  fires.forEach(f => {
+    const locKey = `${f.lat.toFixed(1)},${f.lon.toFixed(1)}`;
+    locations[locKey] = (locations[locKey] || 0) + 1;
+  });
+  
+  const topLocs = Object.entries(locations)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  
+  const html = topLocs.length === 0
+    ? '<div style="opacity:0.6;text-align:center;padding:20px;">No location data</div>'
+    : topLocs.map(([loc, count], i) => `
+      <div style="padding:10px;border-bottom:1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:#00d9ff;">${i+1}. ${loc}</span>
+          <span style="color:#ff3366;font-weight:600;">${count} fires</span>
+        </div>
+      </div>
+    `).join('');
+  
+  document.getElementById("anaTopLocations").innerHTML = html;
+}
+
+// Fire intensity gauge
+function buildFireIntensityGauge(local, sat) {
+  const avgLocalConf = local.length > 0
+    ? (local.reduce((s, f) => s + f.confidence, 0) / local.length * 100)
+    : 0;
+  
+  const avgSatIntensity = sat.length > 0
+    ? (sat.reduce((s, f) => s + (f.intensity || 300), 0) / sat.length)
+    : 0;
+  
+  const html = `
+    <div style="padding:20px;">
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:#999;">Local Detection Confidence</span>
+          <span style="color:#00ff88;font-weight:600;">${avgLocalConf.toFixed(1)}%</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);height:12px;border-radius:6px;overflow:hidden;">
+          <div style="background:linear-gradient(90deg, #00ff88, #00d9ff);height:100%;width:${avgLocalConf}%;transition:width 0.3s;"></div>
+        </div>
+      </div>
+      
+      <div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:#999;">Satellite Intensity</span>
+          <span style="color:#ff7b00;font-weight:600;">${avgSatIntensity.toFixed(0)} K</span>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);height:12px;border-radius:6px;overflow:hidden;">
+          <div style="background:linear-gradient(90deg, #ffb300, #ff3366);height:100%;width:${(avgSatIntensity/500*100)}%;transition:width 0.3s;"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.getElementById("anaIntensityGauge").innerHTML = html;
+}
+
+// Auto-refresh analytics every 5 seconds
+setInterval(()=>{
+ if(document.getElementById("analyticsOverlay").style.display==="block"){
+  loadAnalytics();
+ }
+},5000);
+</script>
+<!-- ================== END ANALYTICS ADD-ON ================== -->
+
+<!-- ================= END SAFE ANALYTICS ADDON ================= -->
+
+
+</body>
+</html>
+<!-- ================== ANALYTICS ADD-ON FIXED ================== -->
+<script>
+window.anaChart = window.anaChart || null;
+
+document.querySelectorAll(".nav-item").forEach(n=>{
+ if(n.innerText.includes("Analytics")){
+  n.onclick = ()=>analyticsOpen();
+ }
+});
+
+function analyticsOpen(){
+ const overlay = document.getElementById("analyticsOverlay");
+ if(!overlay) return;
+ overlay.style.display="block";
+
+ document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll(".nav-item")[1].classList.add("active");
+
+ loadAnalytics();
+}
+
+function analyticsClose(){
+ const overlay = document.getElementById("analyticsOverlay");
+ if(!overlay) return;
+ overlay.style.display="none";
+
+ document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+ document.querySelectorAll(".nav-item")[0].classList.add("active");
+}
+
+async function loadAnalytics(){
+ try{
+  const local = await fetchSafe("http://localhost:3000/api/local-fires",[]);
+  const sat   = await fetchSafe("http://localhost:3000/api/firms",{fires:[]});
+  const stat  = await fetchSafe("http://localhost:3000/api/status",{system:"LIVE"});
+
+  document.getElementById("anaLocal").textContent = local.length || 0;
+  document.getElementById("anaSat").textContent = (sat.fires||[]).length;
+  document.getElementById("anaStatus").textContent = stat.system || "LIVE";
+
+  const avg = local.length
+    ? (local.reduce((s,f)=>s+(f.confidence||0),0)/local.length*100).toFixed(1)
+    : 0;
+
+  document.getElementById("anaConf").textContent = avg+"%";
+
+  buildTrend(local);
+  buildList(local);
+
+ }catch(e){
+  console.log("analytics load error",e);
+ }
+}
+
+async function fetchSafe(url, fallback){
+ try{
+  const r = await fetch(url);
+  if(!r.ok) return fallback;
+  return await r.json();
+ }catch(e){
+  return fallback;
+ }
+}
+
+function buildTrend(fires){
+ const canvas = document.getElementById("anaTrend");
+ if(!canvas) return;
+
+ const buckets={};
+
+ fires.forEach(f=>{
+  if(!f.time) return;
+  const h=new Date(f.time).getHours();
+  buckets[h]=(buckets[h]||0)+1;
+ });
+
+ if(window.anaChart){
+  window.anaChart.destroy();
+ }
+
+ window.anaChart = new Chart(canvas,{
+   type:"line",
+   data:{
+    labels:Object.keys(buckets),
+    datasets:[{
+      label:"Detections",
+      data:Object.values(buckets),
+      tension:0.3
+    }]
+   },
+   options:{
+    responsive:true,
+    plugins:{legend:{display:true}}
+   }
+ });
+}
+
+function buildList(fires){
+ const box = document.getElementById("anaList");
+ if(!box) return;
+
+ box.innerHTML =
+ fires.slice(-10).reverse().map(f=>`
+  <div class="detail-item">
+   <span>${(f.lat||0).toFixed(3)}, ${(f.lon||0).toFixed(3)}</span>
+   <span>${((f.confidence||0)*100).toFixed(1)}%</span>
+  </div>
+ `).join("");
+}
+
+setInterval(()=>{
+ const overlay = document.getElementById("analyticsOverlay");
+ if(overlay && overlay.style.display==="block"){
+  loadAnalytics();
+ }
+},5000);
+
+
+</script>
+<script>
+// ===== FIX: Fire Detection nav click should close analytics =====
+
+document.querySelectorAll(".nav-item").forEach(n => {
+  if (n.innerText.includes("Fire Detection")) {
+    n.onclick = () => {
+      analyticsClose();
+
+      // restore active highlight
+      document.querySelectorAll(".nav-item").forEach(x=>x.classList.remove("active"));
+      n.classList.add("active");
+    };
+  }
+});
+</script>
+
+<style>
+/* ===== Analytics Layout Upgrade ===== */
+
+#analyticsOverlay .ana-grid {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:20px;
+}
+
+#analyticsOverlay .ana-card {
+  background:#121826;
+  border:1px solid #1f2a44;
+  border-radius:12px;
+  padding:16px;
+}
+
+#analyticsOverlay canvas {
+  height:220px !important;
+}
+
+#anaList {
+  max-height:260px;
+  overflow:auto;
+}
+</style>
+
+<script>
+// ===== Enhanced Analytics Engine =====
+
+async function loadAnalytics(){
+  // Fetch live data from Node backend; fall back to empty structures on error
+  const local = await fetchSafe("http://localhost:3000/api/local-fires", []);
+  const sat   = await fetchSafe("http://localhost:3000/api/firms", { fires: [] });
+  const stat  = await fetchSafe("http://localhost:3000/api/status", { system: "LIVE" });
+
+  // ===== high‑level counters =====
+  document.getElementById("anaLocal").textContent  = local.length;
+  document.getElementById("anaSat").textContent    = (sat.fires || []).length;
+  document.getElementById("anaStatus").textContent = (stat.system || "LIVE").toUpperCase();
+
+  const avg = local.length
+    ? (local.reduce((s, f) => s + (f.confidence || 0), 0) / local.length * 100).toFixed(1)
+    : 0;
+  document.getElementById("anaConf").textContent = avg + "%";
+
+  // ===== real‑time charts & panels (all driven by live data) =====
+  // Main trend + confidence + hourly + clusters
+  buildTrendChart(local);              // 📈 Detection Trend
+  buildConfidenceDistribution(local);  // 🎯 Confidence Distribution
+  buildHourlyActivity(local);          // ⏰ Hourly Activity
+  buildFireHeatmap(sat.fires || []);   // 🔥 Top Fire Clusters
+
+  // Lists and summary cards
+  buildRecentFiresList(local);                     // 🔥 Recent Detections
+  buildTopLocations(local);                        // 📍 Top Locations
+  buildFireIntensityGauge(local, sat.fires || []); // ⚡ Intensity Metrics
+}
+
+// ===== chart helpers =====
+
+function chartCreate(id,type,data){
+ if(window[id]) window[id].destroy();
+ window[id] = new Chart(document.getElementById(id),{
+  type:type,
+  data:data,
+  options:{
+   responsive:true,
+   maintainAspectRatio:false,
+   plugins:{legend:{display:true}}
+  }
+ });
+}
+
+// ===== small trend line =====
+function buildTrendMini(fires){
+ const buckets={};
+ fires.forEach(f=>{
+  if(!f.time) return;
+  const h=new Date(f.time).getHours();
+  buckets[h]=(buckets[h]||0)+1;
+ });
+
+ chartCreate("anaTrend","line",{
+  labels:Object.keys(buckets),
+  datasets:[{
+    label:"Fires / Hour",
+    data:Object.values(buckets),
+    tension:0.35
+  }]
+ });
+}
+
+// ===== confidence distribution pie =====
+function buildConfidenceChart(fires){
+ const low= fires.filter(f=>f.confidence<0.5).length;
+ const mid= fires.filter(f=>f.confidence>=0.5 && f.confidence<0.8).length;
+ const hi = fires.filter(f=>f.confidence>=0.8).length;
+
+ chartCreate("anaConfChart","pie",{
+  labels:["Low","Medium","High"],
+  datasets:[{data:[low,mid,hi]}]
+ });
+}
+
+// ===== hourly bar =====
+function buildHourlyBar(fires){
+ const hmap={};
+ fires.forEach(f=>{
+  if(!f.time) return;
+  const h=new Date(f.time).getHours();
+  hmap[h]=(hmap[h]||0)+1;
+ });
+
+ chartCreate("anaBar","bar",{
+  labels:Object.keys(hmap),
+  datasets:[{label:"Hourly Fires",data:Object.values(hmap)}]
+ });
+}
+
+// ===== detection list =====
+function buildList(fires){
+ if(!fires.length){
+  document.getElementById("anaList").innerHTML =
+   "<div style='opacity:.6'>No detections yet</div>";
+  return;
+ }
+
+ document.getElementById("anaList").innerHTML =
+ fires.slice(-12).reverse().map(f=>`
+  <div class="detail-item">
+    <span>${(f.lat||0).toFixed(3)}, ${(f.lon||0).toFixed(3)}</span>
+    <span>${((f.confidence||0)*100).toFixed(1)}%</span>
+  </div>
+ `).join("");
+}
+
+<div class="ana-grid">
+
+<div class="ana-card">
+<h4>Trend</h4>
+<canvas id="anaTrend"></canvas>
+</div>
+
+<div class="ana-card">
+<h4>Confidence Split</h4>
+<canvas id="anaConfChart"></canvas>
+</div>
+
+<div class="ana-card">
+<h4>Hourly Activity</h4>
+<canvas id="anaBar"></canvas>
+</div>
+
+<div class="ana-card">
+<h4>Recent Detections</h4>
+<div id="anaList"></div>
+</div>
+
+</div>
+
+</script>
+
+
+<!-- ================= THERMAL MAP OVERLAY ================= -->
+
+<script>
+// ============================================
+// DECK.GL THERMAL MAP WITH GLOBE
+// ============================================
+
+let deckInstance = null;
+let globeInstance = null;
+let thermalData = [];
+let currentViewState = {
+    longitude: 78,
+    latitude: 22,
+    zoom: 5,
+    pitch: 0,
+    bearing: 0
+};
+
+// Load thermal data from API
+async function loadThermalData() {
+    try {
+        console.log('Loading thermal data...');
+        
+        const fetchWithTimeout = (url, timeout = 5000) => {
+            return Promise.race([
+                fetch(url),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Timeout')), timeout)
+                )
+            ]);
+        };
+        
+        let satData = { fires: [] };
+        let localData = [];
+        
+        try {
+            const [satResponse, localResponse] = await Promise.all([
+                fetchWithTimeout('http://localhost:3000/api/firms').catch(() => null),
+                fetchWithTimeout('http://localhost:3000/api/local-fires').catch(() => null)
+            ]);
+            
+            if (satResponse && satResponse.ok) {
+                satData = await satResponse.json();
+            }
+            if (localResponse && localResponse.ok) {
+                localData = await localResponse.json();
+            }
+            
+            console.log('Backend response:', satData.fires?.length || 0, 'sat,', localData.length, 'local');
+        } catch (backendError) {
+            console.warn('Backend not available, generating demo data');
+        }
+        
+        // If no data from backend, generate demo data
+        if ((!satData.fires || satData.fires.length === 0) && localData.length === 0) {
+            console.log('Using demo thermal data');
+            satData = { fires: generateDemoSatFires(200) };
+            localData = generateDemoLocalFires(30);
+        }
+        
+        // Combine satellite and local fires
+        thermalData = [
+            ...(satData.fires || []).map(f => ({
+                position: [f.lon, f.lat],
+                intensity: f.intensity || 300,
+                type: 'satellite'
+            })),
+            ...localData.map(f => ({
+                position: [f.lon, f.lat],
+                intensity: (f.confidence || 0.5) * 500,
+                type: 'local'
+            }))
+        ];
+        
+        console.log('Loaded thermal data:', thermalData.length, 'fires');
+        return thermalData;
+    } catch (error) {
+        console.error('Error loading thermal data:', error);
+        // Return demo data as last resort
+        const demoSat = generateDemoSatFires(150);
+        const demoLocal = generateDemoLocalFires(20);
+        thermalData = [
+            ...demoSat.map(f => ({
+                position: [f.lon, f.lat],
+                intensity: f.intensity || 300,
+                type: 'satellite'
+            })),
+            ...demoLocal.map(f => ({
+                position: [f.lon, f.lat],
+                intensity: (f.confidence || 0.5) * 500,
+                type: 'local'
+            }))
+        ];
+        console.log('Using fallback demo data:', thermalData.length, 'fires');
+        return thermalData;
+    }
+}
+
+
+// Initialize deck.gl thermal map
+let mapInstance = null; // Store map instance globally
+
+async function initThermalMap() {
+    await loadThermalData();
+
+    const {HeatmapLayer, ScatterplotLayer, MapboxOverlay} = deck;
+
+    mapInstance = new maplibregl.Map({
+        container: 'deckglCanvas',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [78, 22],
+        zoom: 5
+    });
+
+    mapInstance.on('load', () => {
+
+        const overlay = new MapboxOverlay({
+            layers: buildThermalLayers()
+        });
+
+        mapInstance.addControl(overlay);
+
+        deckInstance = overlay; // important
+        
+        // Connect map movement to globe rotation
+        mapInstance.on('move', () => {
+            const center = mapInstance.getCenter();
+            updateGlobeRotation({
+                longitude: center.lng,
+                latitude: center.lat
+            });
+        });
+    });
+}
+// Build thermal layers based on control values
+function buildThermalLayers() {
+    if (!thermalData.length) return [];
+    
+    const intensity = parseInt(document.getElementById('intensitySlider')?.value || 0);
+    const radius = parseInt(document.getElementById('radiusSlider')?.value || 1000);
+    const opacity = (parseInt(document.getElementById('opacitySlider')?.value || 80)) / 100;
+    
+    const {HeatmapLayer, ScatterplotLayer} = deck;
+    
+    // Filter data based on intensity threshold
+    const filteredData = thermalData.filter(d => d.intensity >= intensity * 3);
+    
+    return [
+        // Heatmap layer for thermal visualization
+        new HeatmapLayer({
+            id: 'thermal-heatmap',
+            data: filteredData,
+            getPosition: d => d.position,
+            getWeight: d => d.intensity,
+            radiusPixels: radius / 10,
+            intensity: 2,
+            threshold: 0.03,
+            opacity: opacity,
+            colorRange: [
+                [255, 255, 178, 50],   // Pale yellow
+                [254, 217, 118, 100],  // Light orange
+                [254, 178, 76, 150],   // Orange
+                [253, 141, 60, 200],   // Deep orange
+                [240, 59, 32, 250],    // Red-orange
+                [189, 0, 38, 255]      // Deep red
+            ]
+        }),
+        
+        // Scatterplot layer for individual fire points
+        new ScatterplotLayer({
+            id: 'fire-points',
+            data: filteredData,
+            getPosition: d => d.position,
+            getRadius: d => radius,
+            getFillColor: d => d.type === 'local' 
+                ? [255, 51, 102, 200]   // Pink for local
+                : [255, 179, 0, 180],   // Amber for satellite
+            getLineColor: [255, 255, 255, 100],
+            lineWidthMinPixels: 1,
+            opacity: opacity * 0.8,
+            pickable: true,
+            radiusMinPixels: 2,
+            radiusMaxPixels: 50
+        })
+    ];
+}
+
+// Update thermal layers
+function updateThermalLayers() {
+    if (!deckInstance) return;
+    deckInstance.setProps({ layers: buildThermalLayers() });
+}
+
+// Initialize globe
+function initGlobe() {
+    const container = document.getElementById('globeContainer');
+    
+    // Create scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    camera.position.z = 250;
+    
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(200, 200);
+    container.appendChild(renderer.domElement);
+    
+    // Create globe
+    const Globe = new ThreeGlobe()
+        .globeImageUrl('https://unpkg.com/three-globe@2.24.0/example/img/earth-dark.jpg')
+        .bumpImageUrl('https://unpkg.com/three-globe@2.24.0/example/img/earth-topology.png')
+        .atmosphereColor('#00d9ff')
+        .atmosphereAltitude(0.15);
+    
+    scene.add(Globe);
+    
+    // Add ambient light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    // Add directional light
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(5, 3, 5);
+    scene.add(directionalLight);
+    
+    // Store for updates
+    globeInstance = { Globe, scene, camera, renderer };
+    
+    // Animation loop
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+    animate();
+    
+    // Add fire points to globe
+    updateGlobeFirePoints();
+}
+
+// Update globe rotation based on map view
+function updateGlobeRotation(viewState) {
+    if (!globeInstance) return;
+    
+    const { Globe } = globeInstance;
+    const { longitude, latitude } = viewState;
+    
+    // Convert map coordinates to globe rotation
+    Globe.rotation.y = -longitude * Math.PI / 180;
+    Globe.rotation.x = latitude * Math.PI / 180;
+}
+
+// Update fire points on globe
+function updateGlobeFirePoints() {
+    if (!globeInstance || !thermalData.length) return;
+    
+    const { Globe } = globeInstance;
+    
+    // Add fire points as colored dots
+    const firePoints = thermalData.map(d => ({
+        lat: d.position[1],
+        lng: d.position[0],
+        size: 0.3,
+        color: d.type === 'local' ? '#ff3366' : '#ffb300'
+    }));
+    
+    Globe
+        .pointsData(firePoints)
+        .pointAltitude(0.01)
+        .pointRadius('size')
+        .pointColor('color');
+}
+
+// Toggle between normal and thermal map modes
+let currentMapMode = 'normal';
+
+function showNormalMap() {
+    currentMapMode = 'normal';
+    document.getElementById('heatmap').style.display = 'block';
+    document.getElementById('thermalOverlay').style.display = 'none';
+    
+    // Update button styles
+    document.getElementById('normalMapBtn').style.background = 'rgba(0,217,255,0.3)';
+    document.getElementById('normalMapBtn').style.borderWidth = '2px';
+    document.getElementById('thermalMapBtn').style.background = 'rgba(0,217,255,0.1)';
+    document.getElementById('thermalMapBtn').style.borderWidth = '1px';
+}
+
+function showThermalMap() {
+    currentMapMode = 'thermal';
+    document.getElementById('heatmap').style.display = 'none';
+    document.getElementById('thermalOverlay').style.display = 'block';
+    
+    // Update button styles
+    document.getElementById('thermalMapBtn').style.background = 'rgba(0,217,255,0.3)';
+    document.getElementById('thermalMapBtn').style.borderWidth = '2px';
+    document.getElementById('normalMapBtn').style.background = 'rgba(0,217,255,0.1)';
+    document.getElementById('normalMapBtn').style.borderWidth = '1px';
+    
+    // Initialize if not already done
+    if (!deckInstance) {
+        setTimeout(() => {
+            initThermalMap();
+            initGlobe();
+            setTimeout(updateGlobeFirePoints, 500);
+        }, 100);
+    }
+}
+
+// Control event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // Map mode toggle buttons
+    const normalBtn = document.getElementById('normalMapBtn');
+    const thermalBtn = document.getElementById('thermalMapBtn');
+    
+    if (normalBtn) {
+        normalBtn.onclick = showNormalMap;
+        normalBtn.style.background = 'rgba(0,217,255,0.3)';
+        normalBtn.style.borderWidth = '2px';
+    }
+    
+    if (thermalBtn) {
+        thermalBtn.onclick = showThermalMap;
+    }
+    
+    // Intensity slider with throttling
+    const intensitySlider = document.getElementById('intensitySlider');
+    const intensityValue = document.getElementById('intensityValue');
+    let intensityTimeout;
+    intensitySlider.addEventListener('input', (e) => {
+        intensityValue.textContent = e.target.value;
+        clearTimeout(intensityTimeout);
+        intensityTimeout = setTimeout(() => updateThermalLayers(), 150);
+    });
+    
+    // Radius slider with throttling
+    const radiusSlider = document.getElementById('radiusSlider');
+    const radiusValue = document.getElementById('radiusValue');
+    let radiusTimeout;
+    radiusSlider.addEventListener('input', (e) => {
+        radiusValue.textContent = e.target.value + 'm';
+        clearTimeout(radiusTimeout);
+        radiusTimeout = setTimeout(() => updateThermalLayers(), 150);
+    });
+    
+    // Opacity slider with throttling
+    const opacitySlider = document.getElementById('opacitySlider');
+    const opacityValue = document.getElementById('opacityValue');
+    let opacityTimeout;
+    opacitySlider.addEventListener('input', (e) => {
+        opacityValue.textContent = e.target.value + '%';
+        clearTimeout(opacityTimeout);
+        opacityTimeout = setTimeout(() => updateThermalLayers(), 150);
+    });
+    
+    // Auto-refresh thermal data every 10 seconds when in thermal mode (reduced frequency for performance)
+    setInterval(() => {
+        if (currentMapMode === 'thermal') {
+            loadThermalData().then(() => {
+                updateThermalLayers();
+                updateGlobeFirePoints();
+            });
+        }
+    }, 10000);
+});
+</script>
+
+<!-- ================= END SAFE ANALYTICS ADDON ================= -->
+
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forest Fire Analytics</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg-body: #050814;
+      --bg-card: #0b1120;
+      --bg-card-border: #1e293b;
+      --text-main: #e5e7eb;
+      --text-muted: #94a3b8;
+      --accent-red: #f43f5e;
+      --accent-cyan: #06b6d4;
+      --accent-yellow: #eab308;
+      --accent-green: #22c55e;
+      --accent-purple: #a855f7;
+      --font-ui: 'Inter', sans-serif;
+      --font-code: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-ui);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* 1. Risk Banner */
+    .risk-banner {
+      height: 32px;
+      background: rgba(244, 63, 94, 0.15);
+      border-bottom: 1px solid rgba(244, 63, 94, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--accent-red);
+      gap: 10px;
+      transition: all 0.5s ease;
+    }
+
+    .risk-banner.low {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.3);
+      color: var(--accent-green);
+    }
+
+    .risk-banner.moderate {
+      background: rgba(234, 179, 8, 0.15);
+      border-color: rgba(234, 179, 8, 0.3);
+      color: var(--accent-yellow);
+    }
+
+    /* 2. Enhanced Header */
+    header {
+      height: 70px;
+      border-bottom: 1px solid var(--bg-card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      background: rgba(11, 17, 33, 0.95);
+      flex-shrink: 0;
+    }
+
+    .brand-block h1 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tagline {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .header-meta {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .meta-item {
+      text-align: right;
+    }
+
+    .meta-val {
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: var(--font-code);
+    }
+
+    .meta-label {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-action {
+      background: transparent;
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+    }
+
+    .btn-action:hover {
+      border-color: var(--text-muted);
+      color: var(--text-main);
+    }
+
+    .btn-action.highlight {
+      background: var(--bg-card-border);
+      color: var(--text-main);
+    }
+
+    /* Main Scrollable Area */
+    .scroll-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* 3. KPI Strip */
+    .kpi-strip {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .kpi-card {
+      background: linear-gradient(145deg, #0f172a, #0b1121);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--kpi-color, #334155);
+      opacity: 0.7;
+    }
+
+    .kpi-val {
+      font-size: 1.8rem;
+      font-weight: 700;
+      font-family: var(--font-code);
+      color: var(--text-main);
+    }
+
+    .kpi-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: auto;
+    }
+
+    .kpi-trend {
+      font-size: 0.7rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 8px;
+    }
+
+    /* 4. Filter Bar */
+    .filter-bar {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      padding: 8px 16px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    select,
+    .slider-val {
+      background: #020617;
+      border: 1px solid var(--bg-card-border);
+      color: var(--text-main);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: var(--font-ui);
+      cursor: pointer;
+    }
+
+    /* 5. Dashboard Grid (Existing) */
+    .dash-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 300px minmax(300px, auto);
+      gap: 20px;
+    }
+
+    .panel-hourly {
+      grid-column: 1 / 2;
+      grid-row: 1 / 2;
+    }
+
+    .panel-clusters {
+      grid-column: 2 / 4;
+      grid-row: 1 / 2;
+    }
+
+    .panel-recent {
+      grid-column: 1 / 2;
+      grid-row: 2 / 3;
+    }
+
+    .panel-locations {
+      grid-column: 2 / 3;
+      grid-row: 2 / 3;
+    }
+
+    .panel-intensity {
+      grid-column: 3 / 4;
+      grid-row: 2 / 3;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .card-header span:first-child {
+      font-size: 1rem;
+    }
+
+    .chart-container {
+      flex: 1;
+      position: relative;
+      min-height: 0;
+    }
+
+    .scroll-list {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .scroll-list::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .scroll-list::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+
+    .list-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-family: var(--font-code);
+      font-size: 0.8rem;
+    }
+
+    .metric-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      justify-content: center;
+      height: 100%;
+    }
+
+    .metric-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 12px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .text-cyan {
+      color: var(--accent-cyan);
+    }
+
+    .text-red {
+      color: var(--accent-red);
+    }
+
+    .text-purple {
+      color: var(--accent-purple);
+    }
+
+    .text-yellow {
+      color: var(--accent-yellow);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 1. Risk Banner -->
+  <div class="risk-banner" id="riskBanner">
+    <span>⚠ SYSTEM INITIALIZING...</span>
+  </div>
+
+  <!-- 2. Header -->
+  <header>
+    <div class="brand-block">
+      <h1>🔥 Forest Fire Analytics</h1>
+      <div class="tagline">AI-powered real-time wildfire analytics and risk assessment</div>
+    </div>
+
+    <div style="display: flex; gap: 24px;">
+      <div class="header-meta">
+        <div class="meta-item">
+          <div class="meta-val" id="lastUpdate">--:--</div>
+          <div class="meta-label">Last Updated</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-val text-cyan">HEALTHY</div>
+          <div class="meta-label">Model Status</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-val text-green" style="color:#22c55e">LIVE</div>
+          <div class="meta-label">Data Feed</div>
+        </div>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-action">📤 Export</button>
+        <button class="btn-action">🚨 Alert</button>
+        <a href="/" class="btn-action highlight">⬅ Dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="scroll-container">
+
+    <!-- 3. KPI Strip -->
+    <div class="kpi-strip">
+      <div class="kpi-card" style="--kpi-color: var(--accent-red)">
+        <div class="kpi-label">Active Fires</div>
+        <div class="kpi-val text-red" id="kpi-active">0</div>
+        <div class="kpi-trend" style="color: var(--accent-red)">↑ 4 since last hr</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--accent-cyan)">
+        <div class="kpi-label">Total Detections (24h)</div>
+        <div class="kpi-val" id="kpi-total">0</div>
+        <div class="kpi-trend" style="color: var(--text-muted)">Steady</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--accent-yellow)">
+        <div class="kpi-label">Avg Confidence</div>
+        <div class="kpi-val text-yellow" id="kpi-conf">--%</div>
+        <div class="kpi-trend" style="color: var(--accent-green)">+2% Accuracy</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--accent-purple)">
+        <div class="kpi-label">Area Affected (Est)</div>
+        <div class="kpi-val text-purple" id="kpi-area">0 ac</div>
+        <div class="kpi-trend" style="color: var(--text-muted)">Simulated</div>
+      </div>
+      <div class="kpi-card" style="--kpi-color: var(--accent-red)">
+        <div class="kpi-label">High-Risk Alerts</div>
+        <div class="kpi-val text-red" id="kpi-alerts">0</div>
+        <div class="kpi-trend" style="color: var(--accent-red)">Requires Action</div>
+      </div>
+    </div>
+
+    <!-- 4. Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <span class="filter-label">⏱ Time Range</span>
+        <select>
+          <option>Last 24 Hours</option>
+          <option>Last 1 Hour</option>
+          <option>7 Days</option>
+        </select>
+      </div>
+      <div style="width: 1px; height: 20px; background: var(--bg-card-border); margin: 0 8px;"></div>
+      <div class="filter-group">
+        <span class="filter-label">🛰 Source</span>
+        <select>
+          <option>All Sources</option>
+          <option>Satellite</option>
+          <option>Drone</option>
+        </select>
+      </div>
+      <div style="width: 1px; height: 20px; background: var(--bg-card-border); margin: 0 8px;"></div>
+      <div class="filter-group">
+        <span class="filter-label">🎯 Confidence ></span>
+        <input type="range" min="0" max="100" value="50" style="width: 100px;">
+        <span class="slider-val">50%</span>
+      </div>
+      <div style="margin-left: auto; font-size: 0.8rem; color: var(--text-muted);">
+        <span style="color: var(--accent-green)">●</span> Real-time Filter Active
+      </div>
+    </div>
+
+    <!-- 5. Dashboard Grid (Charts) -->
+    <div class="dash-grid">
+      <!-- Hourly -->
+      <div class="card panel-hourly">
+        <div class="card-header"><span class="text-cyan">⏰</span> Hourly Activity</div>
+        <div class="chart-container"><canvas id="hourlyChart"></canvas></div>
+      </div>
+      <!-- Clusters -->
+      <div class="card panel-clusters">
+        <div class="card-header"><span class="text-red">🔥</span> Top Fire Clusters</div>
+        <div class="chart-container"><canvas id="clustersChart"></canvas></div>
+      </div>
+      <!-- Recent -->
+      <div class="card panel-recent">
+        <div class="card-header"><span class="text-green" style="color:#22c55e">⚡</span> Recent Detections</div>
+        <div class="scroll-list" id="recentList">
+          <div style="padding:20px;text-align:center;color:#555">Waiting...</div>
+        </div>
+      </div>
+      <!-- Locations -->
+      <div class="card panel-locations">
+        <div class="card-header"><span class="text-purple">📍</span> Top Locations</div>
+        <div class="scroll-list" id="locationsList">
+          <div style="padding:20px;text-align:center;color:#555">Loading...</div>
+        </div>
+      </div>
+      <!-- Metrics -->
+      <div class="card panel-intensity">
+        <div class="card-header"><span class="text-yellow">⚡</span> Intensity Metrics</div>
+        <div class="metric-group">
+          <div class="metric-item">
+            <span class="metric-label" style="font-size: 0.75rem">Avg Confidence</span>
+            <span class="metric-val text-cyan" id="m-avgConf">--%</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Peak Intensity</span>
+            <span class="metric-val text-red" id="m-peakInt">--</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Total Valid Points</span>
+            <span class="metric-val text-yellow" id="m-totalValid">0</span>
+          </div>
+          <div class="metric-item">
+            <span class="metric-label">Trend Factor</span>
+            <span class="metric-val text-purple">High</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- CHARTS CONFIG ---
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(30, 41, 59, 0.5)';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+
+    let hourlyChart, clustersChart;
+
+    function initCharts() {
+      const ctxHourly = document.getElementById('hourlyChart').getContext('2d');
+      hourlyChart = new Chart(ctxHourly, {
+        type: 'bar',
+        data: { labels: [], datasets: [{ label: 'Detections', data: [], backgroundColor: '#06b6d4', borderRadius: 4, hoverBackgroundColor: '#22d3ee' }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+            y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' } }
+          }
+        }
+      });
+
+      const ctxClusters = document.getElementById('clustersChart').getContext('2d');
+      clustersChart = new Chart(ctxClusters, {
+        type: 'bubble',
+        data: { datasets: [{ label: 'Fire Cluster', data: [], backgroundColor: 'rgba(244, 63, 94, 0.6)', borderColor: '#f43f5e' }] },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'Longitude' }, ticks: { font: { size: 10 } } },
+            y: { title: { display: true, text: 'Latitude' }, ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // --- DATA LOGIC ---
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch('/api/local-fires');
+        const fires = await res.json();
+
+        if (!Array.isArray(fires)) return;
+
+        // Update All Components
+        updateRiskBanner(fires);
+        updateKPIs(fires);
+
+        processHourly(fires);
+        processClusters(fires);
+        updateRecentList(fires);
+        processLocations(fires);
+        processMetrics(fires);
+
+        document.getElementById('lastUpdate').innerText = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      } catch (e) { console.error(e); }
+    }
+
+    function updateRiskBanner(fires) {
+      const banner = document.getElementById('riskBanner');
+      const count = fires.length;
+
+      // Simple risk logic
+      if (count > 20) {
+        banner.className = 'risk-banner'; // Red default
+        banner.innerHTML = '🔴 <strong>CRITICAL FIRE RISK DETECTED</strong> &nbsp;—&nbsp; RAPID SPREAD POTENTIAL';
+      } else if (count > 5) {
+        banner.className = 'risk-banner moderate';
+        banner.innerHTML = '🟡 <strong>MODERATE RISK</strong> &nbsp;—&nbsp; MONITORING CLUSTERS';
+      } else {
+        banner.className = 'risk-banner low';
+        banner.innerHTML = '🟢 <strong>LOW RISK</strong> &nbsp;—&nbsp; SYSTEM STABLE';
+      }
+    }
+
+    function updateKPIs(fires) {
+      // 1. Active Fires (Unique Locations roughly)
+      const active = fires.length; // Raw count for demo
+      // 2. Total (Simulate 24h history being larger)
+      const total24 = Math.floor(active * 1.5) + 12;
+      // 3. Avg Conf
+      const avg = fires.length ? (fires.reduce((s, f) => s + (f.confidence || 0), 0) / fires.length * 100) : 0;
+      // 4. Area (Simulated)
+      const area = (active * 15.5).toFixed(0);
+      // 5. Alerts (> 0.85 conf)
+      const alerts = fires.filter(f => (f.confidence || 0) > 0.85).length;
+
+      document.getElementById('kpi-active').innerText = active;
+      document.getElementById('kpi-total').innerText = total24;
+      document.getElementById('kpi-conf').innerText = avg.toFixed(1) + '%';
+      document.getElementById('kpi-area').innerText = area + ' ac';
+      document.getElementById('kpi-alerts').innerText = alerts;
+    }
+
+    function processHourly(fires) {
+      const hours = {};
+      // Init last 12 hours
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(); d.setHours(d.getHours() - i);
+        const h = d.getHours() + ":00";
+        hours[h] = 0;
+      }
+      fires.forEach(f => {
+        const d = new Date(f.time);
+        const h = d.getHours() + ":00";
+        if (hours[h] !== undefined) hours[h]++;
+      });
+      hourlyChart.data.labels = Object.keys(hours);
+      hourlyChart.data.datasets[0].data = Object.values(hours);
+      hourlyChart.update();
+    }
+
+    function processClusters(fires) {
+      const bubbles = fires.map(f => ({
+        x: f.lon || 0, y: f.lat || 0,
+        r: (f.confidence || 0.5) * 6 + 2
+      }));
+      clustersChart.data.datasets[0].data = bubbles.slice(-50);
+      clustersChart.update();
+    }
+
+    function updateRecentList(fires) {
+      const container = document.getElementById('recentList');
+      const recent = fires.slice().reverse().slice(0, 20);
+      let html = '';
+      recent.forEach(f => {
+        const conf = ((f.confidence || 0) * 100).toFixed(1) + '%';
+        const lat = typeof f.lat === 'number' ? f.lat.toFixed(3) : '0.000';
+        const lon = typeof f.lon === 'number' ? f.lon.toFixed(3) : '0.000';
+        html += `<div class="list-row"><span style="color:#94a3b8">${lat}, ${lon}</span><span class="text-cyan" style="font-weight:600">${conf}</span></div>`;
+      });
+      container.innerHTML = html || '<div style="padding:10px;text-align:center;color:#666">No detections</div>';
+    }
+
+    function processLocations(fires) {
+      const locs = {};
+      fires.forEach(f => {
+        const key = `${(f.lat || 0).toFixed(2)}, ${(f.lon || 0).toFixed(2)}`;
+        locs[key] = (locs[key] || 0) + 1;
+      });
+      const sorted = Object.entries(locs).sort((a, b) => b[1] - a[1]).slice(0, 10);
+      const container = document.getElementById('locationsList');
+      let html = '';
+      sorted.forEach(([k, count]) => {
+        html += `<div class="list-row"><span>${k}</span><span class="text-purple">${count} events</span></div>`;
+      });
+      container.innerHTML = html || '<div style="padding:10px;text-align:center;color:#666">No locations</div>';
+    }
+
+    function processMetrics(fires) {
+      if (!fires.length) return;
+      const avg = fires.reduce((s, f) => s + (f.confidence || 0), 0) / fires.length;
+      const maxInt = Math.max(...fires.map(f => (f.confidence || 0) * 100));
+      document.getElementById('m-avgConf').innerText = (avg * 100).toFixed(1) + '%';
+      document.getElementById('m-peakInt').innerText = maxInt.toFixed(0);
+      document.getElementById('m-totalValid').innerText = fires.length;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initCharts();
+      fetchAnalytics();
+      setInterval(fetchAnalytics, 3000);
+    });
+  </script>
+</body>
+
+</html>
